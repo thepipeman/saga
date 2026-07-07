@@ -1,0 +1,23 @@
+# CLAUDE.md
+
+This project uses the spec-driven-workflow plugin. See `.claude/workflow/state.json` for current phase.
+
+## Context
+
+@.claude/context/ARCHITECTURE.md
+@.claude/context/PATTERNS.md
+@.claude/context/DOMAIN.md
+@.claude/context/TESTING.md
+
+## Workflow
+
+1. `/design <spec.md>` — produces a design doc, stops for human review
+2. `/approve-design` — human gate, unlocks implementation
+3. `/implement` — implements the approved design with tests
+4. `/mark-reviewed` — human gate, unlocks finishing
+5. `/finish` — changelog entry, commit, optional push/PR
+
+Writes to source files are blocked by a hook until the design for the current
+workflow state is approved; commits/pushes are blocked until code review is
+marked complete. See `hooks/hooks.json` in the plugin if you need to debug why
+something was blocked.
