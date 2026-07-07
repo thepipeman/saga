@@ -7,7 +7,7 @@ argument-hint: "[path-to-design.md]"
 
 Read `.claude/workflow/state.json`. Verify `design_approved` is `true` and, if you can recompute it cheaply, that the design doc's current content hash still matches `design_hash`. If either check fails, stop and tell the user to run `/approve-design` (again, if the doc changed) — do not attempt to implement anyway. This mirrors a hook-level gate (see `hooks/hooks.json`), but check it here too since the hook only catches Write/Edit calls, not a bad decision to proceed conceptually.
 
-Assuming the gate passes, delegate to the `code-executor` subagent (`spec-driven-workflow:code-executor`) with:
+Assuming the gate passes, delegate to the `code-executor` subagent (`saga:code-executor`) with:
 
 - The design doc path (`$1` or `state.json`'s `design_doc`)
 - The tech-stack skills already available to it (`spring-boot-patterns`, `jooq-conventions`, `postgres-migrations`, `testcontainers-testing`) — it should consult these for conventions rather than improvising

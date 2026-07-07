@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This project uses the spec-driven-workflow plugin. See `.claude/workflow/state.json` for current phase.
+This project uses the saga plugin. See `.claude/workflow/state.json` for current phase.
 
 ## Context
 

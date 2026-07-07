@@ -1,12 +1,12 @@
 {
-  "name": "spec-driven-workflow",
-  "displayName": "Spec-Driven Development Workflow",
+  "name": "saga",
+  "displayName": "Saga",
   "version": "0.1.0",
-  "description": "Reusable spec-driven workflow: codebase context bootstrapping, gated AI design review, gated AI implementation, and changelog/commit/PR finishing.",
+  "description": "A gated development workflow: codebase context bootstrapping, AI design review, AI implementation, and changelog/commit/PR finishing — from first rune to finished saga.",
   "author": {
     "name": "Aaron"
   },
-  "keywords": ["workflow", "spec-driven", "spring-boot", "java", "jooq", "postgres"],
+  "keywords": ["workflow", "saga", "spring-boot", "java", "jooq", "postgres"],
   "license": "MIT",
   "defaultEnabled": true
 }

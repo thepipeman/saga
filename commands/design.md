@@ -7,7 +7,7 @@ argument-hint: "<path-to-spec.md>"
 
 Read the spec at `$1`. (Markdown file for now — a future version of this command will accept `--source=jira --ticket=<id>` once a JIRA MCP connector is wired up; keep that swap in mind and don't hardcode markdown-only assumptions into how you structure the design doc.)
 
-Delegate the actual design work to the `design-architect` subagent (namespaced as `spec-driven-workflow:design-architect` if there's a name collision) — it has read-only tools and is scoped specifically to producing design docs, not code. Give it:
+Delegate the actual design work to the `design-architect` subagent (namespaced as `saga:design-architect` if there's a name collision) — it has read-only tools and is scoped specifically to producing design docs, not code. Give it:
 
 - The spec content at `$1`
 - The context docs in `.claude/context/` (ARCHITECTURE.md, PATTERNS.md, DOMAIN.md, TESTING.md) if present — read `init-context` has not been run, tell the user and proceed without them, noting the gap in the design doc

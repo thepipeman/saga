@@ -6,7 +6,7 @@ allowed-tools: Read, Grep, Glob, Write, Bash(git log:*), Bash(find:*), Bash(mkdi
 argument-hint: "[--refresh]"
 ---
 
-You are bootstrapping this project for the spec-driven-workflow plugin. The goal is twofold: (1) generate reusable context documents for future sessions, and (2) customise the plugin's generic skill baselines to reflect this project's actual conventions, so the design and implementation phases produce code that fits the codebase from day one.
+You are bootstrapping this project for the saga plugin. The goal is twofold: (1) generate reusable context documents for future sessions, and (2) customise the plugin's generic skill baselines to reflect this project's actual conventions, so the design and implementation phases produce code that fits the codebase from day one.
 
 If `--refresh` was NOT passed and `.claude/context/` already contains these files, ask the user to confirm before overwriting rather than silently regenerating.
 

@@ -1,6 +1,6 @@
-# spec-driven-workflow
+# saga
 
-A Claude Code plugin implementing a gated spec-driven development workflow:
+A Claude Code plugin implementing a gated development workflow — from first rune to finished saga:
 codebase context bootstrapping → AI design (human-gated) → AI implementation
 (human-gated) → changelog/commit/PR.
 
@@ -13,7 +13,7 @@ under `skills/` are stack-specific.
 **Try it without installing anywhere permanent:**
 
 ```bash
-claude --plugin-dir /path/to/spec-driven-workflow
+claude --plugin-dir /path/to/saga
 ```
 
 **Local plugin, no marketplace:** copy this directory into your project's
@@ -22,12 +22,12 @@ claude --plugin-dir /path/to/spec-driven-workflow
 moved around across recent releases). Then in a session:
 
 ```
-/plugin validate ./spec-driven-workflow    # sanity-check the manifest/frontmatter first
+/plugin validate ./saga    # sanity-check the manifest/frontmatter first
 ```
 
 **Sharing with the team (optional, opt-in):** publish this directory as an
 entry in a `marketplace.json` (personal GitHub repo is enough) and let people
-`/plugin marketplace add <your-repo>` + `/plugin install spec-driven-workflow`
+`/plugin marketplace add <your-repo>` + `/plugin install saga`
 if they want it. Nobody is forced into it by cloning the main project repo.
 
 ## Usage
