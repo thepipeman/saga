@@ -47,6 +47,30 @@ Each phase writes `.claude/workflow/state.json` in the *project*, not the
 plugin — that's how the hooks know what's approved. If you ever need to
 unstick a bad state, it's a plain JSON file; edit it directly.
 
+## Workflow
+
+> **Pre-requisite:** run `/init-context` once per project to bootstrap `.claude/context/` docs,
+> customise the stack skills to your codebase, and initialise the workflow state file.
+> It is not part of the repeating development loop below.
+
+```mermaid
+flowchart TD
+    A([Write spec file]) --> B["/design spec.md\ndesign-architect reads spec\n+ context → design doc"]
+    B --> C{Review\ndesign doc}
+    C -- needs changes --> B
+    C -- looks good --> D["/approve-design\nHash doc, set design_approved=true"]
+    D --> E["🔒 Hook gate\ncheck-design-approved.sh\nblocks Write/Edit until approved"]
+    E --> F["/implement\ncode-executor reads design\n+ skills → code + tests"]
+    F --> G{Review\nthe diff}
+    G -- needs changes --> F
+    G -- looks good --> H["/mark-reviewed\nSet code_reviewed=true"]
+    H --> I["🔒 Hook gate\ncheck-finish-gate.sh\nblocks git until reviewed"]
+    I --> J["/finish --push --pr\nChangelog → commit → push → PR"]
+    J --> K([Done / next saga])
+```
+
+
+
 ## Why hooks instead of just telling Claude the order
 
 Skills, commands, and CLAUDE.md instructions are all probabilistic — Claude

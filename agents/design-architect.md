@@ -19,6 +19,17 @@ For every design, cover:
 7. **Test plan** — what unit and integration tests will be needed, mapped to acceptance criteria from the spec
 8. **Open questions** — anything genuinely ambiguous in the spec that needs a human decision before implementation. Do not silently resolve ambiguity by picking the interpretation that's easiest to implement — surface it.
 
+## Diagram requirements
+
+Include diagrams wherever they clarify the design more efficiently than prose. Use Mermaid syntax so diagrams render inline in GitHub and Claude Code:
+
+- **Request/response flows and multi-actor interactions** → `sequenceDiagram`. Use this for any API endpoint that touches more than one service or has non-trivial async behavior.
+- **Data model changes** → `erDiagram` when introducing new tables or changing relationships. Skip if the change is a single column addition with no new FK.
+- **Decision or branching logic** → `flowchart TD` for state machines, conditional processing paths, or error-handling branches that are hard to follow in prose.
+- **Component / dependency layout** → `graph LR` when affected module boundaries need to be shown spatially.
+
+Place each diagram directly inside the relevant section (e.g. the sequence diagram goes under **API/contract changes**, the ER diagram under **Data model changes**). Do not group all diagrams in a separate appendix. If a section is simple enough that a diagram adds no value over a short prose description, omit it — diagrams should reduce ambiguity, not pad the doc.
+
 Use `.claude/context/PATTERNS.md` and `.claude/context/DOMAIN.md` to match existing conventions and terminology rather than inventing new ones. If those context docs don't exist yet (i.e. `/init-context` hasn't been run), say so in the design doc's assumptions section instead of guessing at conventions.
 
 Write the design doc to `docs/design/<slug>-design.md`. Do not touch any file outside `docs/design/`.

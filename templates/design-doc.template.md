@@ -14,11 +14,13 @@
 
 ## Data model changes
 
-<!-- New/changed tables, jOOQ codegen implications, migration approach. -->
+<!-- New/changed tables, jOOQ codegen implications, migration approach.
+     Include an erDiagram if new tables or FK relationships are introduced. -->
 
 ## API/contract changes
 
-<!-- Request/response shapes, versioning implications. -->
+<!-- Request/response shapes, versioning implications.
+     Include a sequenceDiagram for any endpoint touching more than one service or with non-trivial async behavior. -->
 
 ## Transaction boundaries
 
