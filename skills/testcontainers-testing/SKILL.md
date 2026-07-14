@@ -110,4 +110,4 @@ If jOOQ sources are generated at build time against a Testcontainers instance (n
 
 ## Codebase conventions
 
-> This section is populated by `/init-context` for existing projects. It captures project-specific details: base test class name and location, container class name, Postgres image version in use, active test profile(s), HTTP testing library (RestAssured, MockMvc, etc.), test JWT provider implementation, and any shared test data setup patterns (`@Sql`, fixtures, etc.).
+Read `.claude/context/conventions/testcontainers-testing.md` if it exists in the current project. That file is the authoritative project-specific override for this skill and takes precedence over every generic pattern documented above. If the file is absent, apply the generic guidance in this skill as written.

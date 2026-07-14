@@ -50,22 +50,22 @@ Create `.claude/context/` (if absent) and write the following. Use `${CLAUDE_PLU
 
 ---
 
-## Step 3 — Customise plugin skills
+## Step 3 — Write project-specific skill overrides
 
-Update the `## Codebase conventions` section at the bottom of each skill file in `${CLAUDE_PLUGIN_ROOT}/skills/*/SKILL.md`. Preserve everything above that section unchanged — those are the intentional best-practice guardrails that apply regardless of project. Only rewrite the `## Codebase conventions` section.
+Create `.claude/context/conventions/` inside the project (not inside the plugin) and write one file per skill. The plugin's skill files are never modified — this keeps the plugin safe for global installation shared across multiple projects. Each conventions file is the authoritative project-specific override for that skill; the plugin loads it at runtime.
 
-For **existing projects**, replace the placeholder with concrete, project-specific details discovered in step 1. For **new projects**, write a brief note that conventions are yet to be established and list any technology choices already known.
+For **existing projects**, populate each file with concrete details discovered in step 1. For **new projects**, write a brief note that conventions are yet to be established and list any technology choices already known.
 
-What to capture per skill:
+Files to write and what to capture in each:
 
-**`spring-boot-patterns`:**
+**`.claude/context/conventions/spring-boot-patterns.md`**
 - Any shared Command/CQRS abstraction in use (BOM library, internal module, or none — just plain `@Service`)
 - Project-specific exception types and what HTTP status each maps to
 - REST client interceptors or helper classes in use (logging, auth injection)
 - How JWT roles/claims are extracted and mapped to Spring Security authorities (custom converter class name and location, claim key configured in `application.yml`)
 - BOM libraries providing utility classes (list the artifact IDs and what they provide)
 
-**`jooq-conventions`:**
+**`.claude/context/conventions/jooq-conventions.md`**
 - DSL field name convention (`dsl` vs `dslContext` vs something else)
 - Generated class prefix/naming strategy (e.g., `BH` prefix via a custom `GeneratorStrategy`)
 - Location of generated sources relative to module root
@@ -73,14 +73,14 @@ What to capture per skill:
 - How table constants are imported (static import style)
 - Whether generated sources are committed or produced at build time
 
-**`postgres-migrations`:**
+**`.claude/context/conventions/postgres-migrations.md`**
 - Migration tool (Flyway or Liquibase) and key config (`locations`, `table`, `out-of-order`, etc.)
 - File naming convention with a concrete example from the repo
 - Schema organisation strategy (one Postgres schema per domain, single `public` schema, etc.) with the actual schema names and what each owns
 - Soft-delete convention (column name, type, default, partial index pattern)
 - Enum type declaration pattern and any associated casts
 
-**`testcontainers-testing`:**
+**`.claude/context/conventions/testcontainers-testing.md`**
 - Base integration test class name and package
 - Container class name and Postgres image version
 - Active test profile name(s) and what each enables/disables

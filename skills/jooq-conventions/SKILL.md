@@ -82,4 +82,4 @@ Only acceptable for Postgres-specific constructs the DSL genuinely cannot expres
 
 ## Codebase conventions
 
-> This section is populated by `/init-context` for existing projects. It captures project-specific details: generated class prefix/naming strategy, DSL field name (`dsl` vs `dslContext`), generated source locations, pagination abstraction in use, table import style, and any custom codegen plugins.
+Read `.claude/context/conventions/jooq-conventions.md` if it exists in the current project. That file is the authoritative project-specific override for this skill and takes precedence over every generic pattern documented above. If the file is absent, apply the generic guidance in this skill as written.

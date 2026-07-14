@@ -26,4 +26,4 @@ description: PostgreSQL migration conventions — naming, schema organisation, i
 
 ## Codebase conventions
 
-> This section is populated by `/init-context` for existing projects. It captures project-specific details: migration tool (Flyway/Liquibase), file naming convention (with a concrete example), configured locations and table name, schema organisation strategy (one schema per domain, single schema, etc.), soft-delete column convention, enum type patterns, and any cast patterns in use.
+Read `.claude/context/conventions/postgres-migrations.md` if it exists in the current project. That file is the authoritative project-specific override for this skill and takes precedence over every generic pattern documented above. If the file is absent, apply the generic guidance in this skill as written.

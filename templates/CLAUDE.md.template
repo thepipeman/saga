@@ -9,6 +9,21 @@ This project uses the saga plugin. See `.claude/workflow/state.json` for current
 @.claude/context/DOMAIN.md
 @.claude/context/TESTING.md
 
+## Skill precedence
+
+The saga plugin provides four skills with generic best-practice defaults:
+`spring-boot-patterns`, `jooq-conventions`, `postgres-migrations`, `testcontainers-testing`.
+
+Each skill's `## Codebase conventions` section instructs Claude to load a
+project-specific override file from `.claude/context/conventions/<skill-name>.md`.
+**When that file exists, it wins — it takes precedence over everything in the
+plugin's skill file.** Generic skill guidance only applies when no override file
+is present for that skill.
+
+If you see Claude follow the generic skill pattern instead of a project-specific
+one, check that `/init-context` has been run and that the relevant file exists
+under `.claude/context/conventions/`.
+
 ## Workflow
 
 1. `/design <spec.md>` — produces a design doc, stops for human review

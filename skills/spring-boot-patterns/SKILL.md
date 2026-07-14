@@ -97,4 +97,4 @@ Constructor injection only — no field injection (`@Autowired` on fields). If u
 
 ## Codebase conventions
 
-> This section is populated by `/init-context` for existing projects. It captures project-specific implementations of the patterns above (e.g., a shared Command abstraction, custom exception types, specific BOM libraries, REST client interceptors, security claim mapping). For new projects, add conventions here as they are established.
+Read `.claude/context/conventions/spring-boot-patterns.md` if it exists in the current project. That file is the authoritative project-specific override for this skill and takes precedence over every generic pattern documented above. If the file is absent, apply the generic guidance in this skill as written.
