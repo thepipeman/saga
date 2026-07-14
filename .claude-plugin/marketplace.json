@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "saga-marketplace",
+  "description": "Local marketplace for the saga plugin",
+  "owner": {
+    "name": "Aaron"
+  },
+  "plugins": [
+    {
+      "name": "saga",
+      "description": "A gated development workflow: codebase context bootstrapping, AI design review, AI implementation, and changelog/commit/PR finishing.",
+      "source": "./",
+      "category": "development"
+    }
+  ]
+}
