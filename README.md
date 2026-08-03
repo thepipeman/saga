@@ -1,8 +1,8 @@
 # saga
 
 A Claude Code plugin implementing a gated development workflow — from first rune to finished saga:
-codebase context bootstrapping → AI design (human-gated) → AI implementation
-(human-gated) → changelog/commit/PR.
+codebase context bootstrapping → AI design (human review, not enforced) → AI implementation
+→ code review (human-gated) → changelog/commit/PR.
 
 Built for a Java / Spring Boot / PostgreSQL / jOOQ stack, but the workflow
 skeleton (commands, agents, hooks) is stack-agnostic — only the four skills
@@ -35,17 +35,17 @@ if they want it. Nobody is forced into it by cloning the main project repo.
 ```
 /init-context                      # once per project: generates .claude/context/*, CLAUDE.md, workflow state
 /design specs/PROJ-123.md          # phase 1: produces docs/design/proj-123-design.md, stops for review
-# ... you read the design doc ...
-/approve-design                    # phase 2 gate
-/implement                         # phase 3: implements + tests
+# ... you read the design doc — no enforced gate, but read it before continuing ...
+/implement                         # phase 2: implements + tests
 # ... you review the diff ...
-/mark-reviewed                     # phase 4 gate
-/finish --push --pr                # phase 5: changelog, commit, push, open PR
+/mark-reviewed                     # phase 3 gate
+/finish --push --pr                # phase 4: changelog, commit, push, open PR
 ```
 
 Each phase writes `.claude/workflow/state.json` in the *project*, not the
-plugin — that's how the hooks know what's approved. If you ever need to
-unstick a bad state, it's a plain JSON file; edit it directly.
+plugin — that's how the finish hook knows whether code review happened. If
+you ever need to unstick a bad state, it's a plain JSON file; edit it
+directly.
 
 ## Workflow
 
@@ -58,9 +58,7 @@ flowchart TD
     A([Write spec file]) --> B["/design spec.md\ndesign-architect reads spec\n+ context → design doc"]
     B --> C{Review\ndesign doc}
     C -- needs changes --> B
-    C -- looks good --> D["/approve-design\nHash doc, set design_approved=true"]
-    D --> E["🔒 Hook gate\ncheck-design-approved.sh\nblocks Write/Edit until approved"]
-    E --> F["/implement\ncode-executor reads design\n+ skills → code + tests"]
+    C -- looks good --> F["/implement\ncode-executor reads design\n+ skills → code + tests"]
     F --> G{Review\nthe diff}
     G -- needs changes --> F
     G -- looks good --> H["/mark-reviewed\nSet code_reviewed=true"]
@@ -74,13 +72,15 @@ flowchart TD
 ## Why hooks instead of just telling Claude the order
 
 Skills, commands, and CLAUDE.md instructions are all probabilistic — Claude
-uses judgment about whether to follow them. For a "sequential, not
-incremental" workflow, that's not good enough on its own, so the two hard
-gates (no implementation writes before design approval, no commit/push before
-code review) are enforced by `hooks/hooks.json` + the scripts in
-`hooks/scripts/`, which block via exit code 2 regardless of what the model
-decides. The commands also check state explicitly before delegating, so you
-get a clean message instead of a raw hook block where possible.
+uses judgment about whether to follow them. The one hard-to-reverse action in
+this workflow is committing/pushing code, so that's the one gate enforced by
+`hooks/hooks.json` + `hooks/scripts/check-finish-gate.sh`, which blocks via
+exit code 2 regardless of what the model decides. The design step (`/design`
+→ `/implement`) is intentionally *not* gated this way — implementation writes
+are reversible and reviewable in the diff, so it's left to the model prompt
+and the user's own judgment rather than a hard block. `/finish` also checks
+state explicitly before delegating, so you get a clean message instead of a
+raw hook block where possible.
 
 ## Things to verify before you trust this in anger
 
@@ -99,9 +99,8 @@ relying on it for real work, since this surface has been moving fast:
   that combo resolves custom plugin-provided agent names reliably. If your
   version supports it cleanly, wiring it in directly would be tighter than
   prose delegation.
-- **`python3` / `sha256sum` availability** — the hook scripts and
-  `approve-design` assume these exist on the dev machine. Swap for `jq` /
-  `shasum -a 256` or whatever's actually on your PATH if not.
+- **`python3` availability** — `check-finish-gate.sh` assumes it exists on
+  the dev machine. Swap for `jq` or whatever's actually on your PATH if not.
 
 ## Customizing for your actual codebase
 

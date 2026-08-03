@@ -1,6 +1,6 @@
 ---
 name: code-executor
-description: Use to implement an approved design document, including unit tests. Should only run after a design has been marked approved via /approve-design — the /implement command enforces this before delegating here.
+description: Use to implement a design document, including unit tests. Invoked by the /implement command after the user has reviewed the design doc themselves — there's no enforced approval step before this runs.
 model: sonnet
 effort: high
 tools: Read, Grep, Glob, Write, Edit, Bash

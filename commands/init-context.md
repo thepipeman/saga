@@ -105,8 +105,6 @@ Create `.claude/workflow/state.json` if it doesn't exist:
   "phase": "idle",
   "spec_ref": null,
   "design_doc": null,
-  "design_approved": false,
-  "design_hash": null,
   "code_reviewed": false
 }
 ```

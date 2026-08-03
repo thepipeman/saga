@@ -1,6 +1,6 @@
 ---
 name: finish
-description: Phase 5 — finish up. Adds a Keep a Changelog entry, commits, and optionally pushes/opens a PR. Requires /mark-reviewed to have been run first; commit/push are blocked by a hook otherwise.
+description: Phase 4 — finish up. Adds a Keep a Changelog entry, commits, and optionally pushes/opens a PR. Requires /mark-reviewed to have been run first; commit/push are blocked by a hook otherwise.
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash(git *), Bash(gh pr create:*)
 argument-hint: "[--push] [--pr]"
@@ -31,8 +31,6 @@ After a successful finish, reset `.claude/workflow/state.json` to the idle templ
   "phase": "idle",
   "spec_ref": null,
   "design_doc": null,
-  "design_approved": false,
-  "design_hash": null,
   "code_reviewed": false
 }
 ```

@@ -40,7 +40,7 @@
 
 ---
 
-**Review checklist (human, before running /approve-design):**
+**Review checklist (human, before running /implement):**
 
 - [ ] Affected modules match my expectation of blast radius
 - [ ] Transaction boundaries are correct, especially around external calls

@@ -1,6 +1,6 @@
 ---
 name: mark-reviewed
-description: Human gate for phase 4. Marks the implementation as code-reviewed, which unlocks /finish (changelog + commit + PR). Run this after you've actually reviewed the diff.
+description: Human gate for phase 3. Marks the implementation as code-reviewed, which unlocks /finish (changelog + commit + PR). Run this after you've actually reviewed the diff.
 disable-model-invocation: true
 allowed-tools: Read, Write
 ---
