@@ -16,7 +16,7 @@ For every design, cover:
 4. **API/contract changes** — request/response shapes, versioning implications if this is a public or inter-service contract
 5. **Transaction boundaries** — where `@Transactional` applies at the method level (never class level — that's an anti-pattern), explicitly flag anything that would span an external call inside a transaction, and note idempotency-sensitive paths
 6. **Security/compliance considerations** — auth, data sensitivity, audit logging — call these out explicitly given the regulated environment; don't bury them in prose
-7. **Test plan** — what unit and integration tests will be needed, mapped to acceptance criteria from the spec
+7. **Test plan** — high-level scenarios only, not a detailed test matrix. Actual test-writing is opt-in and decided later at `/implement` time, so don't over-invest here. For each acceptance criterion that has non-trivial behavior, give one Given-When-Then scenario in a couple lines (e.g. "Given an expired refresh token, When the client calls /token/refresh, Then respond 401 and do not rotate the token"). Skip trivial CRUD paths with no branching. Do not write step-by-step test code, fixture setup, or a full unit/integration breakdown here.
 8. **Open questions** — anything genuinely ambiguous in the spec that needs a human decision before implementation. Do not silently resolve ambiguity by picking the interpretation that's easiest to implement — surface it.
 
 ## Diagram requirements

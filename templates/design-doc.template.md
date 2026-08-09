@@ -32,7 +32,9 @@
 
 ## Test plan
 
-<!-- Map to acceptance criteria from the spec. -->
+<!-- High-level scenarios only — actual test-writing is opt-in, decided later at /implement time.
+     One Given-When-Then per acceptance criterion with non-trivial behavior. Skip trivial CRUD.
+     e.g. Given <state>, When <action>, Then <expected outcome>. -->
 
 ## Open questions
 

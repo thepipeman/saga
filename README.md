@@ -36,7 +36,7 @@ if they want it. Nobody is forced into it by cloning the main project repo.
 /init-context                      # once per project: generates .claude/context/*, CLAUDE.md, workflow state
 /design specs/PROJ-123.md          # phase 1: produces docs/design/proj-123-design.md, stops for review
 # ... you read the design doc — no enforced gate, but read it before continuing ...
-/implement                         # phase 2: implements + tests
+/implement                         # phase 2: implements; asks upfront whether to include tests (none/unit/unit+integration)
 # ... you review the diff ...
 /mark-reviewed                     # phase 3 gate
 /finish --push --pr                # phase 4: changelog, commit, push, open PR
@@ -58,7 +58,7 @@ flowchart TD
     A([Write spec file]) --> B["/design spec.md\ndesign-architect reads spec\n+ context → design doc"]
     B --> C{Review\ndesign doc}
     C -- needs changes --> B
-    C -- looks good --> F["/implement\ncode-executor reads design\n+ skills → code + tests"]
+    C -- looks good --> F["/implement\nasks test scope, then\ncode-executor reads design\n+ skills → code (+ tests if requested)"]
     F --> G{Review\nthe diff}
     G -- needs changes --> F
     G -- looks good --> H["/mark-reviewed\nSet code_reviewed=true"]
