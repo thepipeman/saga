@@ -111,27 +111,66 @@ Create `.claude/workflow/state.json` if it doesn't exist:
 
 ---
 
-## Step 6 — Reduce read-permission friction
+## Step 6 — Reduce permission friction
 
-Ask the user, via `AskUserQuestion`, whether to pre-approve read access to the project's filesystem. This is scoped strictly to the `Read` tool — it's only about eliminating repeated "can I read file X" prompts during design/implementation. It does not touch `Write`, `Edit`, or `Bash` permissions; those stay exactly as gated as they already are.
+Ask the user, via `AskUserQuestion`, whether to pre-approve some of saga's own repeat operations in `.claude/settings.json`. This trades away some per-call oversight for less friction, so always ask — never write anything here silently. Ask both of the following together, in one call:
 
-Offer:
+**Scope:**
 
-- **Whole project, with secrets denied (recommended)** — allow `Read` broadly, with explicit `deny` entries for common secret-shaped paths: `.env`, `.env.*`, `secrets/**`, `*.pem`, `*.key`, `id_rsa*`, `**/credentials*.json`. This mirrors the pattern the saga plugin repo uses on itself in its own `.claude/settings.json`.
-- **Specific directories only** — ask which ones (e.g. `src/**`, `docs/**`, `.claude/context/**`) and scope the `Read` allow entries to exactly those, no broader deny list needed since nothing outside them is allowed anyway.
-- **Skip** — leave read prompts as they are; don't touch `.claude/settings.json`.
+> "Seed `.claude/settings.json` so saga's workflow prompts less?"
+> - **Yes, scoped writes (recommended)** — allow Edit/Write under the directories saga actually touches (source, docs, `.claude/`), plus a handful of exact, non-arbitrary build commands. `/implement` alone is typically dozens of Edit/Write calls — measured over 18 sessions on a real project, `Read` came up 106 times, `Edit` 64, `Write` 30, versus Bash commands that mostly appeared once or twice. File-tool prompts are where the actual friction is, not Bash.
+> - **Read-only only** — pre-approve reading the project's files; every write still prompts individually
+> - **Skip** — change nothing
 
-If the user picks either of the first two options:
+**Read breadth** (only matters if the scope answer above wasn't Skip):
 
-1. Read the project's `.claude/settings.json` if it exists; otherwise you'll create it.
-2. Merge — only add or extend the `Read` entries in `permissions.allow` / `permissions.deny`. Never remove or modify existing entries for other tools, and never add `Write`, `Edit`, or `Bash` entries here — those are out of scope for this step.
-3. Show the user the exact change (new file content, or a before/after of just the `Read`-related lines) before writing it.
-4. Write the file.
+> - **Whole project, with secrets denied (recommended)** — allow `Read` broadly, with explicit `deny` entries for `.env`, `.env.*`, `secrets/**`, `*.pem`, `*.key`, `id_rsa*`, `**/credentials*.json`
+> - **Specific directories only** — ask which ones and scope `Read` to exactly those
+
+If the scope answer is **Skip**, stop here — don't touch `.claude/settings.json`.
+
+### What to add
+
+**Read** — per the read-breadth answer above.
+
+**Edit/Write** (only if "scoped writes" was chosen) — scope to what saga actually writes; never blanket-allow `./**`, since the `deny` list above only covers `Read` and a wide write rule reaches straight past it:
+
+```
+"Edit(./<source-dir>/**)", "Write(./<source-dir>/**)"
+"Edit(./docs/**)",         "Write(./docs/**)"
+"Edit(./.claude/**)",      "Write(./.claude/**)"
+```
+
+Derive `<source-dir>` from the module/build layout detected in Step 1 (existing projects) — `src/`, `app/`, `lib/`, `cmd/`, or actual module names. Add each source root as its own entry rather than widening to a shared parent. For new projects (Step 1 was skipped, nothing to detect yet), ask the user directly which directory will hold source once it exists, or skip this part and note in the report that it's worth revisiting with `--refresh` once real structure exists.
+
+**Build commands** (only if "scoped writes" was chosen, and only for a build tool actually detected/known) — exact, non-wildcard invocations only:
+
+| Tool | Add |
+|---|---|
+| Gradle | `Bash(./gradlew compileJava)`, `Bash(./gradlew build *)`, `Bash(./gradlew test *)` |
+| Maven | `Bash(./mvnw compile)`, `Bash(./mvnw test *)` |
+| Node | exact scripts only — `Bash(npm run typecheck)`, `Bash(npm run lint)` |
+| Go | `Bash(go build *)`, `Bash(go test *)` |
+
+Skip entirely for new projects — there's no build tool to detect yet.
+
+### Hard rules
+
+1. **Never allowlist arbitrary code execution.** No `Bash(python3:*)`, `Bash(node:*)`, `Bash(bash:*)`, `Bash(npx:*)`, `Bash(sudo:*)`. No task-runner wildcards — `Bash(npm run *)`, `Bash(make *)`, `Bash(./gradlew *)` all let a script or build file run anything, so they're equivalent to a shell. Exact task names only, as in the table above.
+2. **Don't add what Claude Code already auto-allows** — these never prompt, so an entry is just noise: `cat`, `ls`, `echo`, `head`, `tail`, `wc`, `grep`, `rg`, `find`, `sed`, `jq`, `which`, `date`, `lsof`, `ps`, `diff`, `sort`, `uniq`, `tree`, and all read-only `git`/`gh`/`docker` subcommands.
+3. **`curl` is not worth allowlisting.** Flags precede the URL, so a host-scoped prefix pattern won't match real invocations, and an unscoped `Bash(curl *)` is unrestricted network egress. Let it prompt.
+4. **Merge, never overwrite.** Preserve every existing key and `allow` entry, and the entire `deny` list. De-duplicate against both `.claude/settings.json` and `.claude/settings.local.json` so the same rule doesn't end up in both files.
+5. **Project file, not local.** Write to `.claude/settings.json` so the allowlist is shared and reviewable in version control; leave `.claude/settings.local.json` alone.
+6. **Show before writing.** Show the user the exact change (new file content, or a before/after of the relevant lines) before saving it.
+
+### On Bash beyond the table above
+
+The build-command table covers the predictable, high-frequency cases; it deliberately doesn't try to cover everything, since safe Bash usage past that varies too much per project to guess upfront. Once a few `/design` → `/implement` cycles have run, point the user at the `fewer-permission-prompts` skill (a Claude Code built-in, not part of this plugin): it scans actual session transcripts for repeated read-only Bash/MCP calls and backfills `permissions.allow` with exactly what's been prompted for, never touches `permissions.deny`/`ask`, and refuses to allowlist anything that grants arbitrary code execution. Mention this to the user now so they know it exists for later — don't invoke it as part of this step.
 
 ---
 
 Report a short summary of:
 - Whether this was treated as a new or existing project
 - What was written (context docs, skill updates)
-- What was decided for read-permission friction (step 6) and what's now in `.claude/settings.json`
+- What was decided for permission friction (step 6): the scope chosen, exactly what was added to `.claude/settings.json`, what was deliberately skipped and why (e.g. "skipped `./gradlew *` — arbitrary execution"; "skipped `cat`/`git status` — already auto-allowed"), and a plain note that scoped Edit/Write means those calls stop being individually confirmed
 - Anything you were unsure about (ambiguous layering, conflicting patterns, conventions you couldn't confirm) so the user can correct generated content by hand

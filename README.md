@@ -33,7 +33,7 @@ if they want it. Nobody is forced into it by cloning the main project repo.
 ## Usage
 
 ```
-/init-context                      # once per project: generates .claude/context/*, CLAUDE.md, workflow state, offers a read-only permission allowlist
+/init-context                      # once per project: generates .claude/context/*, CLAUDE.md, workflow state, offers a scoped Read/Edit/Write + build-command allowlist
 /design specs/PROJ-123.md          # phase 1: produces docs/design/proj-123-design.md (incl. Given-When-Then test scenarios + a recommended model), stops for review
 # ... you read the design doc — no enforced gate, but read it before continuing ...
 /implement                         # phase 2: confirms the recommended model (if not sonnet) and asks test scope (none/unit/unit+integration), then implements
@@ -111,6 +111,21 @@ relying on it for real work, since this surface has been moving fast:
   actually ran before trusting it silently.
 - **`python3` availability** — `check-finish-gate.sh` assumes it exists on
   the dev machine. Swap for `jq` or whatever's actually on your PATH if not.
+- **`fewer-permission-prompts` availability** — `/init-context` and
+  `/implement` both point you at this skill for backfilling the allowlist
+  beyond what step 6 pre-approves (see "Reducing permission prompts" below).
+  It's a Claude Code built-in, not something this plugin ships, so if your
+  installed version doesn't have it the pointer is a harmless no-op —
+  nothing else in the workflow depends on it existing.
+
+## Reducing permission prompts
+
+Two complementary layers, not one — the split exists because `/init-context` can pre-approve the *predictable* stuff (where source lives, which build commands are exact and safe) but can't know your actual Bash usage patterns ahead of time:
+
+- **`/init-context` step 6** — a one-time, upfront allowlist written when you bootstrap the project, asked explicitly rather than assumed. It's not just `Read`: measured over 18 real sessions, `Edit`/`Write` prompts (~94 calls) badly outnumbered Bash prompts (mostly 1-2 occurrences each), so step 6 offers scoped `Edit`/`Write` allow entries under the directories saga actually touches (source, `docs/`, `.claude/`) plus a handful of *exact* build commands (e.g. `Bash(./gradlew test *)`, never a wildcard like `Bash(./gradlew *)` which is equivalent to arbitrary execution), alongside the `Read` allowlist with secrets explicitly denied.
+- **The `fewer-permission-prompts` skill** — a Claude Code built-in (not shipped by this plugin), for the long tail step 6 doesn't try to predict. Run it after you've done a few `/design` → `/implement` cycles and it'll scan your actual session transcripts for repeated read-only Bash/MCP calls and backfill `permissions.allow` in `.claude/settings.json` with exactly what you've been getting prompted for. It only ever touches `permissions.allow`, never `deny`/`ask`, and refuses to allowlist anything that grants arbitrary code execution (interpreters, shells, unscoped task-runner wildcards). `/implement` will nudge you toward it if a run hit noticeable Bash prompts beyond what step 6 already covered.
+
+Both write to the project's `.claude/settings.json` (shared, version-controlled) and never to `.claude/settings.local.json`, and both merge rather than overwrite. Run the skill again periodically as your build/test workflow evolves — it's additive and safe to re-run.
 
 ## Customizing for your actual codebase
 

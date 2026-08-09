@@ -47,3 +47,5 @@ If the answer includes tests and the design doc specifies acceptance criteria, t
 ## After implementation
 
 Update `.claude/workflow/state.json` phase to `"implemented"`. Summarize what was changed, note which model actually ran this pass (and whether that matched what was requested, per the best-effort caveat above), and remind the user this now needs human review (phase 3) — run `/mark-reviewed` once that's done, before `/finish` will proceed.
+
+If this run (or the last few `/implement` runs) triggered noticeable Bash permission prompts — beyond the handful of exact build commands `/init-context` step 6 may have pre-approved — suggest the user run the `fewer-permission-prompts` skill. It scans actual session transcripts for repeated read-only Bash/MCP calls and backfills `.claude/settings.json`'s `permissions.allow` accordingly. This is a suggestion only: don't invoke it automatically, since it's a Claude Code built-in outside this plugin's control and changing the permission allowlist should stay an explicit, user-driven action.
