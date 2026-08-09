@@ -1,7 +1,13 @@
 ---
 name: jooq-conventions
-description: jOOQ codegen, DSL usage, and query-structure conventions. Use when writing or reviewing any repository-layer or data-access code.
+description: jOOQ codegen, DSL usage, and query-structure conventions. Use when writing or reviewing repository-layer code in a jOOQ project.
 ---
+
+## When this skill applies
+
+This skill covers the **jOOQ** persistence stack. The `spring-data-jpa` skill covers Spring Data JPA. A project uses one or the other as its primary data-access layer — check `.claude/context/PATTERNS.md` (written by `/init-context`) for which one this project chose, and don't mix them in the same module without an explicit reason recorded in the design doc.
+
+The common case for mixing is a JPA project that drops to jOOQ for a handful of reporting or analytical queries JPQL can't express well. That's legitimate, but it should be a named decision, not something that happens gradually.
 
 ## Codegen
 

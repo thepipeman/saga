@@ -11,8 +11,15 @@ This project uses the saga plugin. See `.claude/workflow/state.json` for current
 
 ## Skill precedence
 
-The saga plugin provides four skills with generic best-practice defaults:
-`spring-boot-patterns`, `jooq-conventions`, `postgres-migrations`, `testcontainers-testing`.
+The saga plugin provides five skills with generic best-practice defaults:
+`spring-boot-patterns`, `spring-data-jpa`, `jooq-conventions`,
+`postgres-migrations`, `testcontainers-testing`. They assume **Java 25 and
+Spring Boot 4.x** — records, sealed types, pattern matching, text blocks, and
+virtual threads are the default, not an aspiration. No preview APIs.
+
+`spring-data-jpa` and `jooq-conventions` are mutually exclusive — this project's
+choice is recorded under `## Persistence stack` in
+`.claude/context/PATTERNS.md`. Load that one, not both.
 
 Each skill's `## Codebase conventions` section instructs Claude to load a
 project-specific override file from `.claude/context/conventions/<skill-name>.md`.
@@ -27,12 +34,13 @@ under `.claude/context/conventions/`.
 ## Workflow
 
 1. `/design <spec.md>` — produces a design doc, stops for human review
-2. `/approve-design` — human gate, unlocks implementation
-3. `/implement` — implements the approved design with tests
-4. `/mark-reviewed` — human gate, unlocks finishing
-5. `/finish` — changelog entry, commit, optional push/PR
+2. `/implement` — implements the design; asks test scope (none / unit / unit+integration) up front
+3. `/mark-reviewed` — human gate, unlocks finishing
+4. `/finish` — changelog entry, commit, optional push/PR
 
-Writes to source files are blocked by a hook until the design for the current
-workflow state is approved; commits/pushes are blocked until code review is
-marked complete. See `hooks/hooks.json` in the plugin if you need to debug why
-something was blocked.
+Reading the design doc between steps 1 and 2 is on you — there is no enforced
+gate there, and implementation writes are reversible and visible in the diff.
+The one hard block is commits/pushes, which a hook refuses until
+`/mark-reviewed` has set `code_reviewed` in `.claude/workflow/state.json`. See
+`hooks/hooks.json` in the plugin if you need to debug why something was
+blocked.

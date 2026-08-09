@@ -6,7 +6,7 @@
   "author": {
     "name": "Aaron"
   },
-  "keywords": ["workflow", "saga", "spring-boot", "java", "jooq", "postgres"],
+  "keywords": ["workflow", "saga", "spring-boot", "java", "jpa", "hibernate", "spring-data-jpa", "jooq", "postgres"],
   "license": "MIT",
   "defaultEnabled": true
 }

@@ -1,67 +1,90 @@
 ---
 name: testcontainers-testing
-description: Testcontainers and unit/integration test conventions. Use whenever writing tests as part of an implementation.
+description: Testcontainers and unit/integration test conventions for Spring Boot 4. Use whenever writing tests as part of an implementation.
 ---
+
+## Version baseline
+
+**Java 25 and Spring Boot 4.x — always.** JUnit 5 only; JUnit 4 and the Spock integration were removed in Boot 4. Two further changes bite immediately if you write tests from muscle memory:
+
+- `@MockBean` / `@SpyBean` are **removed**. Use `@MockitoBean` / `@MockitoSpyBean`, and declare them on the test class — they are not allowed on `@Configuration` classes.
+- `@SpringBootTest` **no longer auto-provides** MockMvc, WebTestClient, or `TestRestTemplate`. Add `@AutoConfigureMockMvc` or `@AutoConfigureTestRestTemplate` explicitly.
+
+`MockitoTestExecutionListener` is gone; use Mockito's `MockitoExtension` directly where you need it.
 
 ## Unit vs. integration
 
 - Service/command business logic gets unit tests with mocked dependencies — no container, fast feedback.
-- Repository-layer (jOOQ) code gets integration tests against a real Postgres via Testcontainers — jOOQ-generated queries must run against real Postgres semantics, not mocks.
+- Repository-layer code gets integration tests against a real Postgres via Testcontainers. This is not optional for either persistence stack: jOOQ-generated queries and Hibernate-generated SQL both have to run against real Postgres semantics, not an in-memory substitute.
 - Full HTTP-level flows (controller → service → repository) use `@SpringBootTest` with the real application context and a running container.
+
+Never test against H2 as a stand-in for Postgres. Dialect differences in types, casing, `jsonb`, arrays, upserts, and constraint behavior mean a green H2 suite tells you nothing about production.
 
 ## Testcontainers setup
 
-Reuse a single Postgres container across the module by using the singleton pattern — one static instance per module, not one per test class:
+Prefer `@ServiceConnection` over `@DynamicPropertySource`. It wires the datasource — URL, credentials, driver — from the container automatically, so there is no property list to keep in sync:
 
 ```java
-public final class AppPostgresContainer extends PostgreSQLContainer<AppPostgresContainer> {
+@TestConfiguration(proxyBeanMethods = false)
+public class ContainerConfig {
 
-    private static AppPostgresContainer instance;
-
-    private AppPostgresContainer() {
-        super("postgres:17-alpine");
-    }
-
-    public static AppPostgresContainer getInstance() {
-        if (instance == null) instance = new AppPostgresContainer();
-        return instance;
+    @Bean
+    @ServiceConnection
+    PostgreSQLContainer<?> postgresContainer() {
+        return new PostgreSQLContainer<>("postgres:17-alpine");
     }
 }
 ```
-
-Wire it into a base integration test class that all `@SpringBootTest` tests extend:
 
 ```java
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
-public abstract class BaseIntegrationTest {
-
-    @Container
-    protected static final PostgreSQLContainer<?> db = AppPostgresContainer.getInstance();
-
-    @DynamicPropertySource
-    static void datasourceProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", db::getJdbcUrl);
-        registry.add("spring.datasource.username", db::getUsername);
-        registry.add("spring.datasource.password", db::getPassword);
-    }
-
-    @BeforeAll
-    static void startContainer() { db.start(); }
-
-    @AfterAll
-    static void stopContainer()  { db.stop(); }
-}
+@Import(ContainerConfig.class)
+@ActiveProfiles("test")
+public abstract class BaseIntegrationTest { }
 ```
 
-Migrations run against the test container the same way they run in real environments (same Flyway/Liquibase config) — do not hand-roll a separate test schema.
+A container defined as a `@Bean` is managed by the Spring context and shared across every test class using the same context — that is the sharing mechanism, so don't also hand-roll a singleton holder. If the project instead uses a static `@Container` field, mark it `static` and apply `@ServiceConnection` there so it starts once per JVM rather than once per test class:
+
+```java
+@Container
+@ServiceConnection
+static final PostgreSQLContainer<?> DB = new PostgreSQLContainer<>("postgres:17-alpine");
+```
+
+Never start and stop a container per test method. Pin the image tag — `postgres:17-alpine`, never `latest` — so a test run is reproducible.
+
+Migrations run against the test container the same way they run in real environments (same Flyway/Liquibase config). Do not hand-roll a separate test schema: if the migrations are wrong, the tests should be the thing that catches it.
 
 ## Repository-layer tests
 
-Use `@JooqTest` (not `@SpringBootTest`) for isolated repository tests when you want Flyway + jOOQ without the full application context. Prevent Spring from replacing the datasource with an embedded one:
+Use the narrowest slice that exercises real SQL, and stop Spring from swapping in an embedded database.
+
+**Spring Data JPA** — `@DataJpaTest` gives you Flyway, the `EntityManager`, and the repositories without the web layer. It is transactional and rolls back per test by default:
+
+```java
+@DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@Import(ContainerConfig.class)
+class OrderRepositoryTest {
+
+    @Autowired OrderRepository repository;
+    @Autowired TestEntityManager entityManager;
+
+    @Test
+    void findsByCustomerReference() { ... }
+}
+```
+
+Two JPA-specific hazards in this slice:
+
+- **The rollback-per-test transaction hides flush failures.** A constraint violation surfaces at flush, which without an explicit `entityManager.flush()` may never happen inside the test. Call `flush()` before asserting on anything the database is supposed to reject.
+- **The persistence context makes reads look correct when they aren't.** A `findById` right after a `save` returns the cached instance without ever querying. `entityManager.flush()` then `entityManager.clear()` before the read, so the assertion exercises real SQL and real mapping.
+
+**jOOQ** — `@JooqTest` gives you Flyway and the `DSLContext` without the full application context:
 
 ```java
 @JooqTest(properties = {"spring.test.database.replace=none"})
+@Import(ContainerConfig.class)
 @ActiveProfiles("test")
 class FooRepositoryTest {
 
@@ -71,6 +94,40 @@ class FooRepositoryTest {
     @BeforeEach void setUp() { repo = new FooRepository(dsl); }
 
     @Test void shouldCreateFoo() { ... }
+}
+```
+
+## Asserting query counts (JPA)
+
+An N+1 that a reviewer misses will pass every functional test. On any read path that loads associations, assert the query count so the regression is caught mechanically:
+
+```java
+var stats = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+stats.clear();
+
+service.listOrders();
+
+assertThat(stats.getPrepareStatementCount()).isEqualTo(1);
+```
+
+Enable `spring.jpa.properties.hibernate.generate_statistics: true` in the test profile only. See the `spring-data-jpa` skill's `references/performance.md`.
+
+## Web-layer tests
+
+```java
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureMockMvc
+class OrderControllerTest { ... }
+```
+
+For an isolated controller slice, `@WebMvcTest(OrderController.class)` plus `@MockitoBean` for the service is faster and needs no container:
+
+```java
+@WebMvcTest(OrderController.class)
+class OrderControllerSliceTest {
+
+    @Autowired MockMvcTester mvc;
+    @MockitoBean OrderService orderService;
 }
 ```
 
@@ -96,15 +153,25 @@ Mock any OAuth2 client registration beans that would try to contact a real auth 
 ClientRegistrationRepository clientRegistrationRepository;
 ```
 
-## jOOQ codegen in tests
+For slice tests, `spring-security-test`'s `SecurityMockMvcRequestPostProcessors.jwt()` is simpler than minting a real token.
 
-If jOOQ sources are generated at build time against a Testcontainers instance (not committed), ensure the codegen step runs before `compile` in the build lifecycle so generated classes are available to production and test code. Generated sources must not be committed.
+## Test data
+
+Build fixtures through the domain's own constructors or a small object-mother class, not through raw SQL inserts — an insert that bypasses validation can set up state the application could never produce, and the test then proves nothing. `@Sql` scripts are acceptable for bulk reference data that a migration doesn't already seed.
+
+Each test sets up the state it needs. Tests that depend on data left behind by an earlier test fail in isolation and pass in a suite, which is the worst debugging experience available.
+
+## Build-time codegen (jOOQ projects only)
+
+If jOOQ sources are generated at build time against a Testcontainers instance rather than committed, ensure the codegen step runs before `compile` so generated classes are available to production and test code. Generated sources must not be committed. This does not apply to JPA projects — entities are hand-written and the static metamodel is produced by the `hibernate-processor` annotation processor.
 
 ## What "adequately tested" means
 
 - Every public service/command method: happy path, at least one validation/error path, and any edge case named in the design doc's acceptance criteria.
 - Idempotency-sensitive paths: include a "call it twice" test asserting the correct idempotent outcome.
 - Transaction-boundary logic around external calls: force the external call to fail and assert the DB state is consistent (the write should not have persisted, or compensating logic should have run).
+- Optimistic locking: if an entity carries `@Version`, one test asserting a concurrent modification produces `OptimisticLockingFailureException`.
+- Any migration that changes an existing table: a test that exercises the affected read/write path against a container built from the full migration history.
 
 ---
 

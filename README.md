@@ -4,9 +4,47 @@ A Claude Code plugin implementing a gated development workflow — from first ru
 codebase context bootstrapping → AI design (human review, not enforced) → AI implementation
 → code review (human-gated) → changelog/commit/PR.
 
-Built for a Java / Spring Boot / PostgreSQL / jOOQ stack, but the workflow
-skeleton (commands, agents, hooks) is stack-agnostic — only the four skills
+Built for a Java 25 / Spring Boot 4 / PostgreSQL stack, but the workflow
+skeleton (commands, agents, hooks) is stack-agnostic — only the five skills
 under `skills/` are stack-specific.
+
+## Skills
+
+| Skill | Covers |
+|---|---|
+| `spring-boot-patterns` | Layering, transaction boundaries, `@ImportHttpServices` REST clients, API versioning, JSpecify null-safety, security, `ProblemDetail` error handling |
+| `spring-data-jpa` | Entity mapping, repository design, fetching strategy, projections, pagination, N+1 — with depth in `references/entities.md`, `references/queries.md`, `references/performance.md` |
+| `jooq-conventions` | Codegen, DSL usage, query structure, record→DTO mapping |
+| `postgres-migrations` | Migration naming, schema organisation, indexing, backward-compatibility |
+| `testcontainers-testing` | Unit vs. integration split, `@ServiceConnection`, `@DataJpaTest`/`@JooqTest` slices, query-count assertions |
+
+`spring-data-jpa` and `jooq-conventions` are **mutually exclusive** — a project
+picks one as its primary data-access layer. `/init-context` step 0b detects it
+from the build file for existing projects and asks for new ones, records the
+answer under `## Persistence stack` in `.claude/context/PATTERNS.md`, and writes
+only the matching conventions override. The code-executor reads that heading to
+decide which of the two skills to load, so don't leave it blank.
+
+## Platform baseline
+
+**Java 25 and Spring Boot 4.x, unconditionally** — Framework 7, Spring Security
+7, Spring Data 2025.1, Hibernate 7.1, Jakarta EE 11, GraalVM 25+ for native
+images. The skills generate records, sealed types, pattern matching, text
+blocks, and virtual-thread configuration by default;
+`skills/spring-boot-patterns/references/java-25.md` covers the language-level
+and virtual-thread guidance, including why enabling virtual threads usually
+just relocates the bottleneck to the connection pool.
+
+Boot 3.x-era APIs — `@MockBean`, `spring-boot-starter-web`,
+`hibernate-jpamodelgen`, `org.springframework.lang.@Nullable`, JUnit 4 — are
+documented as removed rather than supported. Preview APIs are off-limits;
+structured concurrency is still preview on Java 25, so the skills route you to
+`CompletableFuture` over virtual threads instead.
+
+This is a floor, not a migration target. Point saga at a service on an older
+JDK or Boot 3.x and `/init-context` will flag it in its report, and
+`code-executor` is instructed to stop and say so rather than silently
+downgrading what it generates — the generated code won't compile there.
 
 ## Install
 
@@ -129,11 +167,22 @@ Both write to the project's `.claude/settings.json` (shared, version-controlled)
 
 ## Customizing for your actual codebase
 
-The four skills in `skills/` are deliberately written as starting points with
-placeholder conventions — run `/init-context` first, then go back and replace
-the placeholders in `skills/*/SKILL.md` with what `.claude/context/PATTERNS.md`
-actually says about your codebase, so the code-executor agent isn't working
-from generic best practices when your team's real conventions differ.
+The five skills in `skills/` are generic baselines. **Don't edit them** — the
+plugin may be installed globally and shared across projects, so a local edit
+would leak one project's conventions into every other one.
+
+Instead, each skill ends with a `## Codebase conventions` section that tells
+Claude to read `.claude/context/conventions/<skill-name>.md` *inside the
+project* and treat it as authoritative over everything above it.
+`/init-context` step 3 generates those files from what it found in your
+codebase; go back and correct them by hand where it guessed wrong. That's the
+customization surface — not the plugin's own files.
+
+If a project's real convention actively contradicts a skill baseline (say,
+`open-in-view` is on and can't be turned off yet), write that in the
+conventions file explicitly rather than leaving it unsaid. The override is
+read as intentional, so a recorded deviation stops the code-executor from
+"fixing" it on every run.
 
 ## Roadmap notes
 

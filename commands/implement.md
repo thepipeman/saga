@@ -37,7 +37,7 @@ Do not guess or default this silently — always ask, even if the design doc's T
 Delegate to the `code-executor` subagent (`saga:code-executor`) with:
 
 - The design doc path (`$1` or `state.json`'s `design_doc`)
-- The tech-stack skills already available to it (`spring-boot-patterns`, `jooq-conventions`, `postgres-migrations`, `testcontainers-testing`) — it should consult these for conventions rather than improvising
+- The tech-stack skills already available to it (`spring-boot-patterns`, `spring-data-jpa`, `jooq-conventions`, `postgres-migrations`, `testcontainers-testing`) — it should consult these for conventions rather than improvising. `spring-data-jpa` and `jooq-conventions` are mutually exclusive: it loads whichever matches the `## Persistence stack` heading in `.claude/context/PATTERNS.md`, not both
 - The context docs in `.claude/context/`
 - The test scope answer from above, explicitly: none, unit-only, or unit+integration
 - The model decision from above, if a switch was confirmed

@@ -17,8 +17,31 @@ If `--refresh` was NOT passed and `.claude/context/` already contains these file
 Check whether source code already exists:
 
 - Look for `src/` directories, `pom.xml`, `build.gradle` / `build.gradle.kts`, and non-trivial source files (`.java`, `.kt`, `.ts`, `.py`, etc.).
-- **If no source code found:** this is a **new project**. Skip steps 1–2 and go straight to step 3. Skills stay at their generic baselines — add a note in each skill's `## Codebase conventions` section that says "New project — conventions to be established." Then proceed to steps 4–5.
+- **If no source code found:** this is a **new project**. Skip steps 1–2 and go straight to step 0b, then step 3. Skills stay at their generic baselines — add a note in each skill's `## Codebase conventions` section that says "New project — conventions to be established." Then proceed to steps 4–5.
 - **If source code found:** this is an **existing project**. Complete all steps.
+
+---
+
+## Step 0b — Establish the persistence stack
+
+saga ships two mutually-exclusive persistence skills — `spring-data-jpa` and `jooq-conventions`. The code-executor loads one or the other, so this has to be settled before anything else is written; leaving it ambiguous means generated repository code will drift between the two.
+
+**For existing projects,** detect it rather than asking. Check the build file for `spring-boot-starter-data-jpa` vs `jooq` / `spring-boot-starter-jooq`, and confirm against actual repository code (`extends JpaRepository` / `@Entity` vs `DSLContext`). Only fall back to `AskUserQuestion` if the signals genuinely conflict — e.g. both dependencies are present and both patterns appear in source. In that case ask which is primary and whether the secondary is a deliberate carve-out (typically jOOQ for reporting queries inside a JPA project).
+
+**For new projects,** ask via `AskUserQuestion`:
+
+> "Which persistence stack will this project use?"
+> - **Spring Data JPA** — entity-mapped repositories, Hibernate. The default for CRUD-shaped domain services.
+> - **jOOQ** — generated type-safe SQL DSL against the migration-managed schema. Better for query-heavy or reporting-shaped services.
+> - **Both** — JPA as primary, jOOQ for specific complex queries. Say which modules get which.
+
+Record the answer in `.claude/context/PATTERNS.md` under a `## Persistence stack` heading — that's where the code-executor looks for it.
+
+### Platform baseline
+
+saga's skills assume **Java 25 and Spring Boot 4.x** unconditionally. Read the actual versions from the build file (`java.version` / the toolchain block, and the Spring Boot parent POM or Gradle plugin version) and record them in `PATTERNS.md` under a `## Platform` heading.
+
+If either is below the baseline, **say so directly in the final report as something that needs fixing** — don't quietly write conventions files that downgrade the skills to match. Generated code will target Java 25 / Boot 4 regardless, so a project on Boot 3.x will produce code that doesn't compile, and the user needs to know that before running `/design` rather than discovering it in a failed build. Whether to upgrade the project or hold off on adopting saga there is their call, not something to paper over.
 
 ---
 
@@ -29,7 +52,8 @@ Use Glob/Grep/Read (read-only — do not modify source) to determine:
 - **Module/service boundaries** — how the project is split (Maven/Gradle modules, packages, microservices), and how they communicate (REST, messaging, shared libs)
 - **Layering convention** — controller → service → repository, or equivalent; where business rules live vs. persistence logic
 - **Transaction boundaries** — where `@Transactional` is applied; whether it's at the class or method level; any rules about not spanning external calls
-- **Persistence stack** — jOOQ / Spring Data / plain JDBC; migration tool (Flyway/Liquibase) and its naming convention and config; how jOOQ codegen is triggered; whether generated sources are committed
+- **Persistence stack** — per step 0b. If JPA: entity base classes / `@MappedSuperclass` in use, id generation strategy, whether auditing is enabled, the `spring.jpa.open-in-view` and `ddl-auto` settings actually configured, and whether the static metamodel is generated. If jOOQ: how codegen is triggered and whether generated sources are committed. Either way: migration tool (Flyway/Liquibase), its naming convention and config
+- **Platform versions** — Java and Spring Boot, per step 0b. Record both explicitly and flag anything below Java 25 / Boot 4
 - **REST client pattern** — `RestClient`, `@HttpExchange`, `RestTemplate`, `WebClient`, Feign — what's used and how it's configured (interceptors, error handling, auth)
 - **Security approach** — JWT resource server, session-based, IDP in use; how roles/authorities are extracted from the token; Spring Security config style
 - **Testing conventions** — test framework, Testcontainers usage and container setup pattern, base test class name, test profile names, HTTP testing library (RestAssured / MockMvc), auth bypass mechanism in tests
@@ -56,6 +80,8 @@ Create `.claude/context/conventions/` inside the project (not inside the plugin)
 
 For **existing projects**, populate each file with concrete details discovered in step 1. For **new projects**, write a brief note that conventions are yet to be established and list any technology choices already known.
 
+Write the conventions file only for the persistence stack chosen in step 0b — `spring-data-jpa.md` **or** `jooq-conventions.md`, not both. Writing both leaves the code-executor with two competing repository conventions, which is the exact ambiguity step 0b exists to remove. (If step 0b established a deliberate JPA-primary/jOOQ-secondary split, write both and state the module boundary at the top of each.)
+
 Files to write and what to capture in each:
 
 **`.claude/context/conventions/spring-boot-patterns.md`**
@@ -65,7 +91,16 @@ Files to write and what to capture in each:
 - How JWT roles/claims are extracted and mapped to Spring Security authorities (custom converter class name and location, claim key configured in `application.yml`)
 - BOM libraries providing utility classes (list the artifact IDs and what they provide)
 
-**`.claude/context/conventions/jooq-conventions.md`**
+**`.claude/context/conventions/spring-data-jpa.md`** (JPA projects only)
+- Entity base class / `@MappedSuperclass` in use and what it provides (id, auditing, versioning)
+- Id generation strategy actually used, and for sequences the `allocationSize` convention and how it matches the migration
+- Whether auditing is enabled, the `AuditorAware` implementation's class name, and where the audit columns live
+- Repository base interface convention (`JpaRepository` vs `ListCrudRepository` vs a project-specific base)
+- Whether the static metamodel is generated, and whether `Specification` factories live in a shared class
+- Actual `spring.jpa.*` settings in `application.yml` — especially `open-in-view`, `ddl-auto`, batch sizes — and flag any that contradict this skill's baseline so the deviation is a recorded decision rather than a surprise
+- DTO/projection convention: constructor expressions, interface projections, or a mapper library (and which one)
+
+**`.claude/context/conventions/jooq-conventions.md`** (jOOQ projects only)
 - DSL field name convention (`dsl` vs `dslContext` vs something else)
 - Generated class prefix/naming strategy (e.g., `BH` prefix via a custom `GeneratorStrategy`)
 - Location of generated sources relative to module root
@@ -82,7 +117,8 @@ Files to write and what to capture in each:
 
 **`.claude/context/conventions/testcontainers-testing.md`**
 - Base integration test class name and package
-- Container class name and Postgres image version
+- Container class name and Postgres image version, and whether the container is wired via `@ServiceConnection` or `@DynamicPropertySource`
+- Repository slice annotation in use (`@DataJpaTest` / `@JooqTest` / full `@SpringBootTest`) and how the embedded-database replacement is disabled
 - Active test profile name(s) and what each enables/disables
 - HTTP testing library in use (RestAssured, MockMvc, etc.)
 - Test JWT / auth bypass mechanism (class name and how tokens are generated per role)

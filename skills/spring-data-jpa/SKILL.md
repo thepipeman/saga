@@ -1,0 +1,95 @@
+---
+name: spring-data-jpa
+description: Spring Data JPA and Hibernate conventions — entity mapping, repository design, fetching strategy, transactions, and query performance. Use when implementing or reviewing repository-layer or entity code in a JPA project.
+---
+
+## When this skill applies
+
+This skill covers the **Spring Data JPA** persistence stack. The `jooq-conventions` skill covers the jOOQ stack. A project uses one or the other as its primary data-access layer — check `.claude/context/PATTERNS.md` (written by `/init-context`) for which one this project chose, and don't mix them in the same module without an explicit reason recorded in the design doc.
+
+## Version baseline
+
+**Java 25 and Spring Boot 4.x — always.** Spring Framework 7, Spring Data 2025.1 (Spring Data JPA 4.0), Hibernate 7.1, Jakarta Persistence 3.2. Do not generate Boot 3.x-era code — `@MockBean`, `hibernate-jpamodelgen`, and `org.springframework.lang.@Nullable` are all gone or deprecated.
+
+Java 25 shows up in this skill in three places specifically: records are the default shape for DTOs, projections, and `@Embeddable` value objects (but **never** for `@Entity` — entities need a no-arg constructor and mutable state for dirty checking); text blocks for every JPQL query past one line; and virtual threads, which make connection-pool sizing and transaction duration matter more than they used to. See `spring-boot-patterns`' `references/java-25.md` for the last one.
+
+## Non-negotiables
+
+1. **Open Session In View is off.** Set `spring.jpa.open-in-view: false` explicitly in every project. Leaving it on lets lazy loading silently happen during response serialization, which turns one HTTP request into an unbounded number of queries and hides N+1 problems until production. Every association a caller needs must be fetched deliberately by the query that loads the aggregate.
+
+2. **Flyway owns the schema; Hibernate validates it.** `spring.jpa.hibernate.ddl-auto: validate` in every environment including tests. Never `update`, never `create-drop`. Schema changes go through a migration — see the `postgres-migrations` skill.
+
+3. **Entities never cross the service boundary.** Controllers accept and return DTOs (records). Map inside the service or use a projection in the query. Returning an entity from a controller couples your API shape to your schema and re-triggers lazy loads during serialization.
+
+4. **Every association is `LAZY`.** `@ManyToOne` and `@OneToOne` default to `EAGER` — always override them. An EAGER association is a join you pay for on every single load of that entity, including loads that never touch it.
+
+5. **`@Transactional` at the method level only — never on the class.** Read paths use `@Transactional(readOnly = true)`, which lets Hibernate skip dirty-check snapshots and flushes. Class-level `@Transactional` makes it impossible to audit which operations actually need a transaction.
+
+6. **No external HTTP call or message publish inside a transaction.** Commit the DB write first, then call out; apply compensating logic on failure. A transaction holds a pooled connection for the duration of the network call.
+
+7. **No unbounded reads.** `findAll()` with no `Pageable` or `Limit` on a table that grows is a production incident waiting to happen. Every collection-returning query is paginated, limited, or bounded by a selective predicate.
+
+8. **Repositories are persistence-only.** No business rules, no orchestration, no external calls. Custom behavior goes in a fragment interface + implementation, not in a service reaching for the `EntityManager`.
+
+## Repository shape
+
+Extend the narrowest interface that fits. `JpaRepository` drags in `flush`, `saveAllAndFlush`, `deleteAllInBatch` and the rest whether or not you want them exposed:
+
+```java
+public interface OrderRepository extends ListCrudRepository<Order, UUID>,
+                                         ListPagingAndSortingRepository<Order, UUID> {
+
+    @EntityGraph(attributePaths = "items")
+    Optional<Order> findWithItemsById(UUID id);
+
+    Page<Order> findByCustomerIdAndStatus(UUID customerId, OrderStatus status, Pageable pageable);
+}
+```
+
+`ListCrudRepository` returns `List` where `CrudRepository` returns `Iterable`, which is almost always what callers want. Reach for `JpaRepository` only when the code genuinely needs the JPA-specific batch/flush operations.
+
+## Reference material
+
+Load the relevant file rather than guessing — each covers one area in depth:
+
+| Topic | Reference | Load when |
+|---|---|---|
+| Entity mapping | `references/entities.md` | Defining or changing an `@Entity`, id strategy, enums, embeddables, auditing, optimistic locking, Postgres-specific column types |
+| Queries & projections | `references/queries.md` | Writing repository methods, `@Query`/`@NativeQuery`, DTO projections, pagination and keyset scrolling, `Specification` filters, `@Modifying` writes |
+| Performance | `references/performance.md` | Diagnosing N+1, choosing `@EntityGraph` vs `JOIN FETCH`, batch inserts, `MultipleBagFetchException`, in-memory pagination warnings, bulk operations |
+
+## Boot 4 configuration baseline
+
+```yaml
+spring:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+        default_batch_fetch_size: 25
+        query:
+          fail_on_pagination_over_collection_fetch: true
+```
+
+`fail_on_pagination_over_collection_fetch` turns Hibernate's silent in-memory-pagination fallback into a startup-visible failure. Leave it on — see `references/performance.md`.
+
+Two Boot 4 specifics worth knowing:
+
+- **Metamodel generation** uses `hibernate-processor` as the annotation processor (`hibernate-jpamodelgen` was renamed). Required if the project uses type-safe `Specification` predicates against `Order_.status` rather than string attribute names.
+- **AOT repositories** pre-generate query method implementations at build time, which also validates every derived query and `@Query` at compile time instead of at context startup. Enabled via `spring.aot.repositories.enabled`. Methods taking a `ScrollPosition` (keyset pagination), dynamic projections, and inherited `CrudRepository` methods are excluded and fall back to reflection — that's expected, not a misconfiguration.
+
+## Null-safety
+
+Spring Framework 7 standardizes on JSpecify. Mark packages `@NullMarked` in `package-info.java` so unannotated types are non-null by default, and annotate only the genuinely nullable ones with `org.jspecify.annotations.@Nullable`. Do not use `org.springframework.lang.@Nullable` or `@NonNullApi` — deprecated in Framework 7.
+
+---
+
+## Codebase conventions
+
+Read `.claude/context/conventions/spring-data-jpa.md` if it exists in the current project. That file is the authoritative project-specific override for this skill and takes precedence over every generic pattern documented above. If the file is absent, apply the generic guidance in this skill as written.

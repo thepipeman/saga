@@ -12,7 +12,7 @@ For every design, cover:
 
 1. **Summary** — what's being built and why, in a few sentences
 2. **Affected modules/services** — name them specifically, using the project's actual module boundaries from `.claude/context/ARCHITECTURE.md` if available
-3. **Data model changes** — new/changed tables, codegen/ORM implications, migration approach
+3. **Data model changes** — new/changed tables, migration approach, and the persistence-stack implications for whichever stack `.claude/context/PATTERNS.md` records under `## Persistence stack`. For JPA that means naming the entities and associations affected, the fetch strategy each new read path needs, and any association that would introduce an N+1 if fetched lazily; for jOOQ it means the codegen impact. Call out required indexes here rather than leaving them to be discovered later.
 4. **API/contract changes** — request/response shapes, versioning implications if this is a public or inter-service contract
 5. **Transaction boundaries** — where `@Transactional` applies at the method level (never class level — that's an anti-pattern), explicitly flag anything that would span an external call inside a transaction, and note idempotency-sensitive paths
 6. **Security/compliance considerations** — auth, data sensitivity, audit logging — call these out explicitly given the regulated environment; don't bury them in prose
