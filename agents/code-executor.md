@@ -17,13 +17,19 @@ Rules:
    - `unit`: mocked-dependency tests for new/changed business logic, no containers.
    - `unit+integration`: the above, plus Testcontainers-backed repository/HTTP-level tests. Follow `.claude/context/TESTING.md` and the `testcontainers-testing` skill.
    If you were somehow invoked without an explicit scope, stop and ask rather than assuming either extreme.
-3. **Match existing conventions over introducing new ones.** Check `.claude/context/PATTERNS.md` and nearby existing code before deciding how to structure something new.
-4. **`@Transactional` at the method level only — never at the class level.** Class-level `@Transactional` is an anti-pattern. Read-only methods use `@Transactional(readOnly = true)`.
-5. **Never make an external HTTP call inside a `@Transactional` scope.** DB write first, commit, then call out. See the `spring-boot-patterns` skill.
-6. **Use the project's migration tool for all schema changes.** New migration file per change; never edit a shipped migration. Follow the naming and schema-organisation conventions in the `postgres-migrations` skill.
-7. **Generated jOOQ sources are not committed.** The codegen step runs at build/test time against a Testcontainers instance. See the `testcontainers-testing` skill.
-8. **Prefer `@HttpExchange` over imperative `RestClient` calls** for new external integrations, unless per-request interceptor logic requires the imperative form. See the `spring-boot-patterns` skill.
-9. **Keep security config IDP-agnostic.** Use Spring Security abstractions; don't hard-code provider-specific class names in production code.
-10. **Report what you changed and why**, file by file, so the human reviewer (phase 4) isn't starting from a blank diff read.
+3. **Cap fix attempts on a failing test at 2.** When a test fails — one you just wrote, or an existing one your change broke — diagnose and attempt a fix. If it still fails after 2 attempts, stop iterating on it. Do not keep trying a 3rd, 4th, 5th time, and do not "fix" it by loosening assertions, adding sleeps/retries to paper over flakiness, or deleting/skipping the test — those hide the problem instead of solving it. Instead, leave the test failing and record in your final report, per test:
+   - the test name and file
+   - what each of the 2 attempts changed and why it didn't work
+   - the actual failure output from the last attempt (assertion diff, exception, stack trace — whatever the runner gave you)
+   - your best diagnosis of the root cause, even if unresolved
+   Then continue with any remaining independent work rather than blocking the whole pass on one stuck test, unless the failure indicates something is fundamentally broken (e.g. the app doesn't start, migrations don't apply) and continuing would just produce more failures downstream.
+4. **Match existing conventions over introducing new ones.** Check `.claude/context/PATTERNS.md` and nearby existing code before deciding how to structure something new.
+5. **`@Transactional` at the method level only — never at the class level.** Class-level `@Transactional` is an anti-pattern. Read-only methods use `@Transactional(readOnly = true)`.
+6. **Never make an external HTTP call inside a `@Transactional` scope.** DB write first, commit, then call out. See the `spring-boot-patterns` skill.
+7. **Use the project's migration tool for all schema changes.** New migration file per change; never edit a shipped migration. Follow the naming and schema-organisation conventions in the `postgres-migrations` skill.
+8. **Generated jOOQ sources are not committed.** The codegen step runs at build/test time against a Testcontainers instance. See the `testcontainers-testing` skill.
+9. **Prefer `@HttpExchange` over imperative `RestClient` calls** for new external integrations, unless per-request interceptor logic requires the imperative form. See the `spring-boot-patterns` skill.
+10. **Keep security config IDP-agnostic.** Use Spring Security abstractions; don't hard-code provider-specific class names in production code.
+11. **Report what you changed and why**, file by file, so the human reviewer (phase 4) isn't starting from a blank diff read. Include any blocked test failures from rule 3 up front, not buried at the end.
 
 You do not commit, push, or touch the changelog — that's phase 5, handled by `/finish`.

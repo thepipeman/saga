@@ -36,6 +36,11 @@
      One Given-When-Then per acceptance criterion with non-trivial behavior. Skip trivial CRUD.
      e.g. Given <state>, When <action>, Then <expected outcome>. -->
 
+## Recommended implementation model
+
+<!-- sonnet (default) / opus / haiku, plus a one-line reason specific to this spec.
+     Advisory only — /implement will surface this and ask before doing anything with it. -->
+
 ## Open questions
 
 <!-- Anything genuinely ambiguous that needs a human decision before implementation. -->
@@ -48,4 +53,5 @@
 - [ ] Transaction boundaries are correct, especially around external calls
 - [ ] Migration approach is backward-compatible
 - [ ] Security/compliance considerations are complete, not just present
+- [ ] Recommended implementation model matches my own read of the complexity
 - [ ] Open questions are actually resolved, not silently assumed away

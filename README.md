@@ -33,10 +33,10 @@ if they want it. Nobody is forced into it by cloning the main project repo.
 ## Usage
 
 ```
-/init-context                      # once per project: generates .claude/context/*, CLAUDE.md, workflow state
-/design specs/PROJ-123.md          # phase 1: produces docs/design/proj-123-design.md, stops for review
+/init-context                      # once per project: generates .claude/context/*, CLAUDE.md, workflow state, offers a read-only permission allowlist
+/design specs/PROJ-123.md          # phase 1: produces docs/design/proj-123-design.md (incl. Given-When-Then test scenarios + a recommended model), stops for review
 # ... you read the design doc — no enforced gate, but read it before continuing ...
-/implement                         # phase 2: implements; asks upfront whether to include tests (none/unit/unit+integration)
+/implement                         # phase 2: confirms the recommended model (if not sonnet) and asks test scope (none/unit/unit+integration), then implements
 # ... you review the diff ...
 /mark-reviewed                     # phase 3 gate
 /finish --push --pr                # phase 4: changelog, commit, push, open PR
@@ -99,6 +99,16 @@ relying on it for real work, since this surface has been moving fast:
   that combo resolves custom plugin-provided agent names reliably. If your
   version supports it cleanly, wiring it in directly would be tighter than
   prose delegation.
+- **Per-call model overrides on prose-delegated subagents** — `implement.md`
+  asks whether to switch to the design doc's recommended model (`agents/design-architect.md`
+  rule 8) and, if you say yes, *attempts* to pass that as an override when
+  delegating to `code-executor`. Same root uncertainty as the bullet above:
+  `code-executor.md`'s `model: sonnet` frontmatter is the one thing guaranteed
+  to take effect, and I haven't confirmed a per-invocation override reliably
+  beats it on every Claude Code version. `/implement` is written to say so in
+  its summary rather than assert the switch worked — but if you're relying on
+  this for cost/capability control, verify once by checking which model
+  actually ran before trusting it silently.
 - **`python3` availability** — `check-finish-gate.sh` assumes it exists on
   the dev machine. Swap for `jq` or whatever's actually on your PATH if not.
 

@@ -2,7 +2,7 @@
 name: init-context
 description: Bootstrap reusable context documents and customize plugin skills for this project. For existing codebases it reads actual patterns and updates the skills to match; for new projects it keeps the generic skill baselines. Run once when adopting this workflow, or re-run with --refresh after major refactors.
 disable-model-invocation: true
-allowed-tools: Read, Grep, Glob, Write, Bash(git log:*), Bash(find:*), Bash(mkdir:*)
+allowed-tools: Read, Grep, Glob, Write, Bash(git log:*), Bash(find:*), Bash(mkdir:*), AskUserQuestion
 argument-hint: "[--refresh]"
 ---
 
@@ -111,7 +111,27 @@ Create `.claude/workflow/state.json` if it doesn't exist:
 
 ---
 
+## Step 6 — Reduce read-permission friction
+
+Ask the user, via `AskUserQuestion`, whether to pre-approve read access to the project's filesystem. This is scoped strictly to the `Read` tool — it's only about eliminating repeated "can I read file X" prompts during design/implementation. It does not touch `Write`, `Edit`, or `Bash` permissions; those stay exactly as gated as they already are.
+
+Offer:
+
+- **Whole project, with secrets denied (recommended)** — allow `Read` broadly, with explicit `deny` entries for common secret-shaped paths: `.env`, `.env.*`, `secrets/**`, `*.pem`, `*.key`, `id_rsa*`, `**/credentials*.json`. This mirrors the pattern the saga plugin repo uses on itself in its own `.claude/settings.json`.
+- **Specific directories only** — ask which ones (e.g. `src/**`, `docs/**`, `.claude/context/**`) and scope the `Read` allow entries to exactly those, no broader deny list needed since nothing outside them is allowed anyway.
+- **Skip** — leave read prompts as they are; don't touch `.claude/settings.json`.
+
+If the user picks either of the first two options:
+
+1. Read the project's `.claude/settings.json` if it exists; otherwise you'll create it.
+2. Merge — only add or extend the `Read` entries in `permissions.allow` / `permissions.deny`. Never remove or modify existing entries for other tools, and never add `Write`, `Edit`, or `Bash` entries here — those are out of scope for this step.
+3. Show the user the exact change (new file content, or a before/after of just the `Read`-related lines) before writing it.
+4. Write the file.
+
+---
+
 Report a short summary of:
 - Whether this was treated as a new or existing project
 - What was written (context docs, skill updates)
+- What was decided for read-permission friction (step 6) and what's now in `.claude/settings.json`
 - Anything you were unsure about (ambiguous layering, conflicting patterns, conventions you couldn't confirm) so the user can correct generated content by hand
