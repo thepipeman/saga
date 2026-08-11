@@ -1,0 +1,202 @@
+---
+description: Spring Boot 4 layering, transaction boundary, REST client, API versioning, and security conventions. Use when implementing or reviewing any service, controller, or repository-layer code.
+alwaysApply: false
+---
+
+## Version baseline
+
+**Java 25 and Spring Boot 4.x — always, on every project.** Spring Framework 7, Spring Security 7, Jakarta EE 11, GraalVM 25+ for native images. This is a floor, not a target to migrate toward: generate Java 25 code using records, sealed types, pattern matching, and virtual threads by default. Pre-21 idioms in new code are a defect.
+
+If you find yourself in a project that is still on Boot 3.x or an older JDK, say so plainly and stop rather than silently downgrading the code you generate — the fix is to upgrade the project, and that's a decision for the human, not something to work around one file at a time.
+
+See `spring-boot-patterns-java-25.mdc` for the language-level and virtual-thread guidance.
+
+Do not generate Boot 3.x-era code. The renames that most often trip up generated code:
+
+| Boot 4 | Replaced |
+|---|---|
+| `spring-boot-starter-webmvc` | `spring-boot-starter-web` |
+| `spring-boot-starter-webservices` | `spring-boot-starter-web-services` |
+| `spring-boot-starter-security-oauth2-*` | `spring-boot-starter-oauth2-*` |
+| `@MockitoBean` / `@MockitoSpyBean` | `@MockBean` / `@SpyBean` (removed) |
+| `org.jspecify.annotations.@Nullable` | `org.springframework.lang.@Nullable` (deprecated) |
+| `hibernate-processor` | `hibernate-jpamodelgen` |
+| `spring.persistence.exceptiontranslation.enabled` | `spring.dao.exceptiontranslation.enabled` |
+
+Undertow, Spock integration, and the embedded uber-jar launch scripts were removed outright. Anything deprecated in 3.x is gone — don't reach for it.
+
+## Layering
+
+Controller → Service (or Command) → Repository. Controllers do not contain business logic; they map requests/responses and delegate. Business rules live in the service/command layer. Repositories are persistence-only.
+
+Controllers accept and return DTOs — records, not entities or generated database records. For the repository layer itself, follow whichever persistence rule matches this project's stack: `spring-data-jpa.mdc` or `jooq-conventions.mdc`.
+
+## Transaction boundaries
+
+- `@Transactional` is applied at the **method level only** — never at the class level.
+- Class-level `@Transactional` is an anti-pattern: it silently wraps every method (including helpers and void utilities), making it impossible to audit which operations actually need a transaction.
+- Read-only operations use `@Transactional(readOnly = true)`.
+- **Never make an external HTTP call or message publish inside a `@Transactional` scope.** Do the DB write first, let it commit, then make the external call. If the external call fails, apply compensating logic — rollback cannot cover a network call.
+
+```java
+// Correct — method-level, not class-level
+@Transactional
+public void createFoo(FooInput input) { ... }
+
+@Transactional(readOnly = true)
+public Foo findById(Long id) { ... }
+```
+
+## REST client
+
+Prefer the declarative `@HttpExchange` interface backed by `RestClient` for new external integrations — it keeps the HTTP details in one place and is easier to test:
+
+```java
+@HttpExchange("/api/resource")
+public interface ExternalServiceClient {
+
+    @PostExchange
+    ResponseDto create(@RequestBody RequestDto request);
+
+    @GetExchange("/{id}")
+    ResponseDto getById(@PathVariable String id);
+}
+```
+
+Register it with `@ImportHttpServices` (Framework 7) rather than hand-building an `HttpServiceProxyFactory`. The annotation is repeatable, groups clients by name, and defaults to a `RestClient`-backed proxy:
+
+```java
+@Configuration
+@ImportHttpServices(group = "billing", types = ExternalServiceClient.class)
+public class HttpClientConfig {
+
+    @Bean
+    RestClientHttpServiceGroupConfigurer billingClientConfigurer(BillingProperties properties) {
+        return groups -> groups.filterByName("billing")
+            .forEachClient((group, builder) -> builder.baseUrl(properties.baseUrl()));
+    }
+}
+```
+
+`basePackages` / `basePackageClasses` work in place of `types` when a group has many interfaces. Base URLs, timeouts, and default headers are configurable per group under `spring.http.client.service.<group>.*` — keep them in `application.yml`, not in Java.
+
+Use the imperative `RestClient` API only when you need per-request logic the declarative form can't accommodate. For OAuth2, that's usually not a reason to drop down: Spring Security 7 supports HTTP service groups directly and picks up a `@ClientRegistrationId` annotation on the `@HttpExchange` method.
+
+Never use `RestTemplate`.
+
+## API versioning
+
+Framework 7 has first-class request-mapping versioning — don't hand-roll `/v1/` path prefixes or a custom header filter for a versioned contract:
+
+```java
+@Configuration
+public class WebConfiguration implements WebMvcConfigurer {
+
+    @Override
+    public void configureApiVersioning(ApiVersionConfigurer configurer) {
+        configurer.useRequestHeader("API-Version");
+    }
+}
+```
+
+```java
+@GetMapping(path = "/{id}", version = "1.0")
+public OrderV1 getV1(@PathVariable UUID id) { ... }
+
+@GetMapping(path = "/{id}", version = "2.0")
+public OrderV2 getV2(@PathVariable UUID id) { ... }
+```
+
+`useRequestParameter`, `usePathSegment`, and `useMediaTypeParameter` are the other built-in resolvers. Unsupported versions are rejected with `InvalidApiVersionException` (400). Configure an `ApiVersionDeprecationHandler` to emit `Deprecation`/`Sunset` headers when retiring a version.
+
+## Null-safety
+
+Framework 7 standardizes on JSpecify. Put `@NullMarked` on `package-info.java` so unannotated types are non-null by default, and annotate only genuinely nullable ones with `org.jspecify.annotations.@Nullable`:
+
+```java
+@NullMarked
+package com.example.order;
+
+import org.jspecify.annotations.NullMarked;
+```
+
+`org.springframework.lang.@Nullable`, `@NonNullApi`, and `@NonNullFields` are deprecated — don't introduce them.
+
+## Security
+
+Keep security configuration IDP-agnostic. Use Spring Security abstractions — do not hard-code provider class names (Keycloak, Authentik, Okta, etc.) in production code. The issuer URI and claim mappings belong in `application.yml`, not in Java.
+
+Standard stateless resource-server pattern:
+
+```java
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity
+public class SecurityConfig {
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(AbstractHttpConfigurer::disable)
+            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/actuator/**").permitAll()
+                .anyRequest().authenticated()
+            )
+            .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
+        return http.build();
+    }
+}
+```
+
+Use `@EnableMethodSecurity` and `@PreAuthorize` for fine-grained method-level checks. Extract role/authority mapping logic into a dedicated converter class rather than inlining it in `SecurityConfig`.
+
+## Error handling
+
+Exceptions map to HTTP responses via a centralized `@RestControllerAdvice` — don't catch-and-translate inside controllers or services. Use domain-specific exception types with clear names (e.g. `ResourceNotFoundException`, `DuplicateResourceException`) that the advice maps to the correct status codes.
+
+Return `ProblemDetail` (RFC 9457) rather than an ad-hoc error map, so every service in the estate produces the same error shape:
+
+```java
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    ProblemDetail handleNotFound(ResourceNotFoundException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    ProblemDetail handleValidation(MethodArgumentNotValidException ex) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        problem.setTitle("Validation failed");
+        problem.setProperty("errors", ex.getBindingResult().getFieldErrors().stream()
+            .collect(toMap(FieldError::getField, FieldError::getDefaultMessage, (a, b) -> a)));
+        return problem;
+    }
+}
+```
+
+Extend `ResponseEntityExceptionHandler` when you want Spring's built-in handling of the standard MVC exceptions and only need to override a few. Never let a raw persistence exception reach the client — map `OptimisticLockingFailureException` to `409 Conflict` and `DataIntegrityViolationException` to `409` or `400`, and never surface the underlying constraint name in the response body.
+
+Validate at the edge: `@Valid` on every `@RequestBody`, and constraints declared on the DTO record components rather than checked imperatively in the service.
+
+## Dependency injection
+
+Constructor injection only — no field injection (`@Autowired` on fields). If using Lombok, `@RequiredArgsConstructor` is fine. No circular service dependencies; if one appears it signals a domain boundary problem, not a `@Lazy` fix.
+
+Note that Lombok's value is much reduced on Java 25 — records cover the DTO and value-object cases outright, so reach for Lombok only for `@RequiredArgsConstructor` and `@Slf4j` on components. Never put Lombok's `@Data` on a JPA entity (see the `spring-data-jpa.mdc` rule for why that specifically breaks).
+
+## Reference material
+
+| Topic | Rule | Use when |
+|---|---|---|
+| Java 25 | `spring-boot-patterns-java-25.mdc` | Choosing between records/sealed types/pattern matching, enabling or tuning virtual threads, replacing `ThreadLocal` with scoped values, deciding whether a preview API is safe to use |
+
+For persistence, use the rule matching this project's stack — `spring-data-jpa.mdc` or `jooq-conventions.mdc`.
+
+---
+
+## Codebase conventions
+
+Check `.claude/context/conventions/spring-boot-patterns.md` if it exists in the current project (written by the saga Claude Code plugin, if this repo also uses it). That file is the authoritative project-specific override for this rule and takes precedence over every generic pattern documented above. If the file is absent, apply the generic guidance in this rule as written.

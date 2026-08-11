@@ -1,0 +1,105 @@
+---
+description: Java 25 language features and virtual-thread guidance for Spring Boot 4 code — records, sealed types, pattern matching, scoped values, structured concurrency status. Use when choosing between records/sealed types/pattern matching, enabling or tuning virtual threads, replacing ThreadLocal with scoped values, or deciding whether a preview API is safe to use.
+alwaysApply: false
+---
+
+Java 25 is the baseline for every project. It is an LTS release and Spring Boot 4 supports it first-class. Write code that uses it — pre-21 idioms in new code are a defect, not a style preference.
+
+## Language features to use by default
+
+**Records for every DTO, request/response body, projection, and value object.** They are immutable, get `equals`/`hashCode`/`toString` for free, and work as `@Embeddable` types in Jakarta Persistence 3.2. They are *not* valid `@Entity` types — see the `spring-data-jpa.mdc` rule.
+
+```java
+public record CreateOrderRequest(
+    @NotBlank String customerReference,
+    @NotEmpty List<OrderLine> lines
+) { }
+```
+
+Compact constructors are the right place for invariants, so an invalid instance cannot exist:
+
+```java
+public record Money(BigDecimal amount, String currency) {
+    public Money {
+        if (amount.signum() < 0) throw new IllegalArgumentException("amount must be non-negative");
+        currency = currency.toUpperCase(Locale.ROOT);
+    }
+}
+```
+
+**Sealed interfaces + pattern matching for exhaustive domain modelling.** This replaces the visitor pattern and the enum-plus-switch-plus-default idiom, and the compiler enforces that every case is handled:
+
+```java
+public sealed interface PaymentResult permits Approved, Declined, Pending { }
+
+String describe(PaymentResult result) {
+    return switch (result) {
+        case Approved(var authCode)     -> "approved: " + authCode;
+        case Declined(var reason, _)    -> "declined: " + reason;
+        case Pending(var retryAfter)    -> "pending until " + retryAfter;
+    };
+}
+```
+
+Record deconstruction patterns and `_` for unused bindings are both standard. No `default` branch on a sealed hierarchy — the whole point is that adding a permitted type becomes a compile error at every switch that needs updating.
+
+**`var` for local variables** where the initializer already names the type. Not for fields, not for method returns, and not where it hides what the expression produces.
+
+**Text blocks for every multi-line string** — JPQL, SQL, JSON fixtures. See the query examples in the `spring-data-jpa.mdc` rule.
+
+**Sequenced collections** (`getFirst()`, `getLast()`, `reversed()`) instead of `list.get(list.size() - 1)`.
+
+**Flexible constructor bodies** (final in 25) let you validate or normalize before `super(...)` / `this(...)` instead of passing an expression through a static helper.
+
+## Virtual threads
+
+Enable them:
+
+```yaml
+spring:
+  threads:
+    virtual:
+      enabled: true
+```
+
+This puts request handling and `@Async` work on virtual threads. For a typical service — blocking JDBC, blocking HTTP clients, a thread mostly waiting on I/O — this is the single highest-leverage configuration change available, and it does not require rewriting anything to be reactive.
+
+Things that follow from turning it on:
+
+- **The connection pool becomes the bottleneck, not the thread pool.** Virtual threads remove the cap on concurrent requests, so ten thousand of them will queue on a HikariCP pool of ten. Size the pool against what the database can actually serve and expect the queue to move there. This is the main reason "we enabled virtual threads and nothing got faster" happens.
+- **A `@Transactional` method holds a connection for its entire duration** regardless of thread type. Virtual threads make it cheaper to have many threads waiting on that connection, not cheaper to hold it. The rule about never making an external call inside a transaction matters *more* here, not less.
+- **`synchronized` no longer pins** since JDK 24 (JEP 491) — virtual threads acquire and release monitors independently of their carrier. You do not need to rewrite `synchronized` blocks as `ReentrantLock` on Java 25. Pinning is still possible from native frames (JNI) and a few legacy paths, but the common case is gone.
+- **Never pool virtual threads.** They are cheap to create and the pool is the thing you were trying to eliminate. `Executors.newVirtualThreadPerTaskExecutor()`, not a fixed pool of them.
+- **Don't use `ThreadLocal` as a cache** in virtual-thread code. With millions of threads, per-thread caching is a memory leak with extra steps. `ThreadLocal` for propagating context (the security context, a trace id) is still fine — Spring handles that — but see scoped values below.
+
+## Scoped values
+
+Finalized in Java 25 (JEP 506). The correct replacement for `ThreadLocal` when you need to pass implicit context down a call chain: immutable, bounded to a well-defined scope, and cheap under virtual threads because there is nothing to copy per thread.
+
+```java
+private static final ScopedValue<TenantId> TENANT = ScopedValue.newInstance();
+
+ScopedValue.where(TENANT, tenantId).run(() -> service.process(order));
+```
+
+Read with `TENANT.get()` anywhere down the call stack. Value is immutable and unbinds automatically when the scope exits — no `remove()` to forget in a finally block. Prefer an explicit method parameter when the chain is short; scoped values earn their keep when threading the parameter through would touch a dozen unrelated signatures.
+
+## What not to use yet
+
+**Structured concurrency is still a preview API** in Java 25 (JEP 505 — fifth preview) and its API has changed between previews. Do not enable `--enable-preview` in a production service to get it. When you need to fan out concurrent calls, use `CompletableFuture` or an `ExecutorService` over virtual threads.
+
+The same applies to any other preview or incubator feature. Preview APIs are not covered by compatibility guarantees and a JDK upgrade can break the build.
+
+## Null-safety
+
+Java has no null-restricted types yet, so this is a tooling concern. Use JSpecify (`@NullMarked` at package level, `@Nullable` on the exceptions) and enforce it with NullAway in the build — see the `spring-boot-patterns.mdc` rule. `Optional` is a *return type* for "no result"; it is not a field type and not a parameter type.
+
+## Build configuration
+
+```xml
+<properties>
+    <java.version>25</java.version>
+</properties>
+```
+
+Set the release explicitly rather than relying on the JDK the build happens to run on. If the project targets GraalVM native images, Boot 4 requires GraalVM 25 or later.
