@@ -33,7 +33,12 @@
 ## Test plan
 
 <!-- High-level scenarios only — actual test-writing is opt-in, decided later at /implement time.
-     One Given-When-Then per acceptance criterion with non-trivial behavior. Skip trivial CRUD.
+     List only scenarios with real business value or high-value technical risk (auth, money,
+     idempotency, data integrity, concurrency, security/compliance boundaries). Do not aim for
+     coverage of every acceptance criterion or possible input — skip trivial CRUD, straightforward
+     validation, and anything a reviewer would consider obvious. If nothing in this change clears
+     that bar, say "No high-value scenarios — implementation is low-risk CRUD/plumbing" instead of
+     padding the list.
      e.g. Given <state>, When <action>, Then <expected outcome>. -->
 
 ## Recommended implementation model

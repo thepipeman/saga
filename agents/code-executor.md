@@ -19,6 +19,7 @@ Rules:
    - `unit`: mocked-dependency tests for new/changed business logic, no containers.
    - `unit+integration`: the above, plus Testcontainers-backed repository/HTTP-level tests. Follow `.claude/context/TESTING.md` and the `testcontainers-testing` skill.
    If you were somehow invoked without an explicit scope, stop and ask rather than assuming either extreme.
+   Within whatever scope was chosen, still exercise judgment on *what* to test: prioritize business-critical logic and high-value technical risk (branching, edge cases, auth/authz, money, idempotency, concurrency, data integrity). Do not write a test for every getter/setter, trivial delegation, or straightforward CRUD path with no branching just to inflate coverage — that burns tokens and review time without catching real bugs. The design doc's Test plan section (if present) marks the scenarios worth prioritizing; treat it as a floor, not a ceiling.
 3. **Cap fix attempts on a failing test at 2.** When a test fails — one you just wrote, or an existing one your change broke — diagnose and attempt a fix. If it still fails after 2 attempts, stop iterating on it. Do not keep trying a 3rd, 4th, 5th time, and do not "fix" it by loosening assertions, adding sleeps/retries to paper over flakiness, or deleting/skipping the test — those hide the problem instead of solving it. Instead, leave the test failing and record in your final report, per test:
    - the test name and file
    - what each of the 2 attempts changed and why it didn't work

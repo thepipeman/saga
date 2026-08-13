@@ -72,7 +72,7 @@ if they want it. Nobody is forced into it by cloning the main project repo.
 
 ```
 /init-context                      # once per project: generates .claude/context/*, CLAUDE.md, workflow state, offers a scoped Read/Edit/Write + build-command allowlist
-/design specs/PROJ-123.md          # phase 1: produces docs/design/proj-123-design.md (incl. Given-When-Then test scenarios + a recommended model), stops for review
+/design specs/PROJ-123.md          # phase 1: produces docs/claude-design-drafts/proj-123-design.md (incl. high-value Given-When-Then test scenarios + a recommended model), stops for review
 # ... you read the design doc — no enforced gate, but read it before continuing ...
 /implement                         # phase 2: confirms the recommended model (if not sonnet) and asks test scope (none/unit/unit+integration), then implements
 # ... you review the diff ...

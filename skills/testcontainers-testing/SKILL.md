@@ -167,11 +167,15 @@ If jOOQ sources are generated at build time against a Testcontainers instance ra
 
 ## What "adequately tested" means
 
-- Every public service/command method: happy path, at least one validation/error path, and any edge case named in the design doc's acceptance criteria.
-- Idempotency-sensitive paths: include a "call it twice" test asserting the correct idempotent outcome.
+Coverage is not the goal — catching real business and technical risk is. Do not write a test for every public method or every branch just because it exists; skip trivial CRUD, straightforward validation, and delegation with no logic of its own. Prioritize:
+
+- Business-critical logic: anything the design doc's Test plan flags as high-value, plus non-obvious branching a bug in would actually cost something.
+- Idempotency-sensitive paths: a "call it twice" test asserting the correct idempotent outcome.
 - Transaction-boundary logic around external calls: force the external call to fail and assert the DB state is consistent (the write should not have persisted, or compensating logic should have run).
 - Optimistic locking: if an entity carries `@Version`, one test asserting a concurrent modification produces `OptimisticLockingFailureException`.
-- Any migration that changes an existing table: a test that exercises the affected read/write path against a container built from the full migration history.
+- Any migration that changes an existing table in a way that could break existing data: a test that exercises the affected read/write path against a container built from the full migration history.
+
+When in doubt, ask "would a bug here cause a real business or data-integrity problem, or just fail to prove something already obvious from the code?" — write the test only for the former.
 
 ---
 
