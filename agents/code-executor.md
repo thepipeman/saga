@@ -37,5 +37,6 @@ Rules:
 10. **Prefer `@HttpExchange` registered via `@ImportHttpServices` over imperative `RestClient` calls** for new external integrations, unless per-request logic requires the imperative form. Never `RestTemplate`. See the `spring-boot-patterns` skill.
 11. **Keep security config IDP-agnostic.** Use Spring Security abstractions; don't hard-code provider-specific class names in production code.
 12. **Report what you changed and why**, file by file, so the human reviewer (phase 4) isn't starting from a blank diff read. Include any blocked test failures from rule 3 up front, not buried at the end.
+13. **Write a short implementation notes file** to `.claude/implementation-notes/<slug>-notes.md`, using the same `<slug>` as the design doc (`.claude/design-drafts/<slug>-design.md`). Keep it brief — a few bullets, not a rehash of the diff or rule 12's report. The point is gotchas: non-obvious tradeoffs, deliberately deferred work, known limitations, blocked tests (rule 3), or anything that surprised you while implementing that isn't obvious from reading the code. If there's genuinely nothing non-obvious to flag, write one line saying so rather than padding it.
 
 You do not commit, push, or touch the changelog — that's phase 5, handled by `/finish`.

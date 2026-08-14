@@ -33,4 +33,4 @@ Place each diagram directly inside the relevant section (e.g. the sequence diagr
 
 Use `.claude/context/PATTERNS.md` and `.claude/context/DOMAIN.md` to match existing conventions and terminology rather than inventing new ones. If those context docs don't exist yet (i.e. `/init-context` hasn't been run), say so in the design doc's assumptions section instead of guessing at conventions.
 
-Write the design doc to `docs/claude-design-drafts/<slug>-design.md`. Do not touch any file outside `docs/claude-design-drafts/` — `docs/` itself is reserved for the project's official documentation, not AI-generated drafts.
+Write the design doc to `.claude/design-drafts/<slug>-design.md`. Do not touch any file outside `.claude/design-drafts/` — `docs/` itself is reserved for the project's official documentation, not AI-generated drafts.

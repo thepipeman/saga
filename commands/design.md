@@ -27,7 +27,7 @@ Delegate the actual design work to the `design-architect` subagent (namespaced a
 - The context docs in `.claude/context/` (ARCHITECTURE.md, PATTERNS.md, DOMAIN.md, TESTING.md) if present — read `init-context` has not been run, tell the user and proceed without them, noting the gap in the design doc
 - The template at `${CLAUDE_PLUGIN_ROOT}/templates/design-doc.template.md`
 
-The subagent should write the resulting design doc to `docs/claude-design-drafts/<slug>-design.md` (derive `<slug>` from the spec filename or title). This keeps AI-generated drafts out of `docs/`, which is reserved for the project's official documentation.
+The subagent should write the resulting design doc to `.claude/design-drafts/<slug>-design.md` (derive `<slug>` from the spec filename or title). This keeps AI-generated drafts out of `docs/`, which is reserved for the project's official documentation.
 
 ## After the design doc is written
 
