@@ -4,10 +4,12 @@ This project uses the saga plugin. See `.claude/workflow/state.json` for current
 
 ## Context
 
-@.claude/context/ARCHITECTURE.md
-@.claude/context/PATTERNS.md
-@.claude/context/DOMAIN.md
-@.claude/context/TESTING.md
+Project context lives in `.claude/context/ARCHITECTURE.md`, `PATTERNS.md`,
+`DOMAIN.md`, and `TESTING.md`. `/design`, `/implement`, and
+`/document-service` already read these directly when they need them — read
+them yourself only if you're working on something ad hoc that needs that
+context too. They're deliberately not `@`-imported here so they don't load
+into every session regardless of whether the task needs them.
 
 ## Skill precedence
 
@@ -44,3 +46,6 @@ The one hard block is commits/pushes, which a hook refuses until
 `/mark-reviewed` has set `code_reviewed` in `.claude/workflow/state.json`. See
 `hooks/hooks.json` in the plugin if you need to debug why something was
 blocked.
+
+Each step above reads what it needs from `state.json` and files on disk, not
+from conversation history — it's safe (and cheap) to `/clear` between steps.

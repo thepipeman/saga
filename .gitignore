@@ -37,3 +37,7 @@ venv/
 dist/
 build/
 out/
+
+
+#
+ai-brainstorm/

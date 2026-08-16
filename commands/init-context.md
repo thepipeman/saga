@@ -128,7 +128,7 @@ Files to write and what to capture in each:
 
 ## Step 4 — Wire into CLAUDE.md
 
-If the project has no `CLAUDE.md`, create one from `${CLAUDE_PLUGIN_ROOT}/templates/CLAUDE.md.template`. If one exists, add `@`-imports for the four context files if they aren't already referenced (e.g. `@.claude/context/ARCHITECTURE.md`), without disturbing existing content.
+If the project has no `CLAUDE.md`, create one from `${CLAUDE_PLUGIN_ROOT}/templates/CLAUDE.md.template`. If one exists, add a pointer to the four context files if one isn't already present (see the template's `## Context` section for the wording) — a plain reference, not an `@`-import. The four docs are read directly by `/design`, `/implement`, and `/document-service` when they need them; `@`-importing them into `CLAUDE.md` would load all four into every session regardless of task, which is wasted context on anything that isn't one of those three. Don't disturb existing content while adding this.
 
 ---
 
@@ -199,6 +199,27 @@ Skip entirely for new projects — there's no build tool to detect yet.
 5. **Project file, not local.** Write to `.claude/settings.json` so the allowlist is shared and reviewable in version control; leave `.claude/settings.local.json` alone.
 6. **Show before writing.** Show the user the exact change (new file content, or a before/after of the relevant lines) before saving it.
 
+### Also document quiet-output commands in CLAUDE.md
+
+Independent of the permission-scope answer above (this writes to `CLAUDE.md`,
+not `.claude/settings.json`) — if a build tool was detected, add a `## Common
+commands` section to the project's `CLAUDE.md` with the same commands from the
+table above, plus their quiet-output flags. The point isn't permission friction
+this time, it's that a routine `./gradlew test` dumps hundreds of lines into
+whatever session runs it; a documented quiet invocation keeps that noise out of
+context on every future turn that reaches for it instead of guessing:
+
+| Tool | Command |
+|---|---|
+| Gradle | `./gradlew test --console=plain -q` |
+| Maven | `./mvnw test -q` |
+| Node | project's actual test command with its runner's quiet/dot-reporter flag (e.g. `--reporter=dot` for Vitest, `--silent` for Jest) — check `package.json` scripts rather than guessing |
+| Go | `go test ./... -count=1` — Go's default test output is already terse; no extra flag needed |
+
+Skip this for new projects, same as the build-command table above — there's
+nothing to detect yet. Append the section to `CLAUDE.md` rather than
+overwriting existing content.
+
 ### On Bash beyond the table above
 
 The build-command table covers the predictable, high-frequency cases; it deliberately doesn't try to cover everything, since safe Bash usage past that varies too much per project to guess upfront. Once a few `/design` → `/implement` cycles have run, point the user at the `fewer-permission-prompts` skill (a Claude Code built-in, not part of this plugin): it scans actual session transcripts for repeated read-only Bash/MCP calls and backfills `permissions.allow` with exactly what's been prompted for, never touches `permissions.deny`/`ask`, and refuses to allowlist anything that grants arbitrary code execution. Mention this to the user now so they know it exists for later — don't invoke it as part of this step.
@@ -209,4 +230,5 @@ Report a short summary of:
 - Whether this was treated as a new or existing project
 - What was written (context docs, skill updates)
 - What was decided for permission friction (step 6): the scope chosen, exactly what was added to `.claude/settings.json`, what was deliberately skipped and why (e.g. "skipped `./gradlew *` — arbitrary execution"; "skipped `cat`/`git status` — already auto-allowed"), and a plain note that scoped Edit/Write means those calls stop being individually confirmed
+- Whether a `## Common commands` section was added to `CLAUDE.md`, and what it lists
 - Anything you were unsure about (ambiguous layering, conflicting patterns, conventions you couldn't confirm) so the user can correct generated content by hand

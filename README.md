@@ -113,11 +113,21 @@ flowchart TD
     G -- needs changes --> F
     G -- looks good --> H["/mark-reviewed\nSet code_reviewed=true"]
     H --> I["🔒 Hook gate\ncheck-finish-gate.sh\nblocks git until reviewed"]
-    I --> J["/finish --push --pr\nChangelog → commit → push → PR"]
+    I --> J["/finish --push --pr\nchangelog-writer drafts entry\n→ commit → push → PR"]
     J --> K([Done / next saga])
 ```
 
+### Clearing between phases
 
+Every phase reads what it needs from `.claude/workflow/state.json` and the
+design doc/implementation-notes files on disk — not from conversation
+history. `/implement` doesn't need `/design`'s conversation in context to run
+correctly, and `/finish` doesn't need either of the two before it. Run
+`/clear` (or start a fresh session) between `/design`, `/implement`, and
+`/finish` — it's safe precisely because this workflow was built to be
+resumable from a cold session, and it keeps each phase's context to just what
+that phase actually needs instead of re-reading every prior phase's turns on
+every subsequent turn.
 
 ## Why hooks instead of just telling Claude the order
 
@@ -142,13 +152,13 @@ relying on it for real work, since this surface has been moving fast:
   Write/Edit and `tool_input.command` for Bash. Run `claude --debug` once and
   trigger each hook manually to confirm the payload shape matches; adjust the
   `python3 -c` parsing in `hooks/scripts/*.sh` if it doesn't.
-- **`agent:` cross-referencing between plugin components** — `design.md` and
-  `implement.md` currently tell Claude in plain language to delegate to the
-  `design-architect` / `code-executor` subagents by name rather than relying
-  on a `context: fork` + `agent:` frontmatter combo, since I wasn't certain
-  that combo resolves custom plugin-provided agent names reliably. If your
-  version supports it cleanly, wiring it in directly would be tighter than
-  prose delegation.
+- **`agent:` cross-referencing between plugin components** — `design.md`,
+  `implement.md`, and `finish.md` currently tell Claude in plain language to
+  delegate to the `design-architect` / `code-executor` / `changelog-writer`
+  subagents by name rather than relying on a `context: fork` + `agent:`
+  frontmatter combo, since I wasn't certain that combo resolves custom
+  plugin-provided agent names reliably. If your version supports it cleanly,
+  wiring it in directly would be tighter than prose delegation.
 - **Per-call model overrides on prose-delegated subagents** — `implement.md`
   asks whether to switch to the design doc's recommended model (`agents/design-architect.md`
   rule 8) and, if you say yes, *attempts* to pass that as an override when

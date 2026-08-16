@@ -10,9 +10,11 @@ Read `.claude/workflow/state.json`. If `code_reviewed` is not `true`, tell the u
 
 ## 1. Changelog
 
-Look at `CHANGELOG.md` at the project root (create one following https://keepachangelog.com/en/1.1.0/ structure if it doesn't exist — `## [Unreleased]` section with `### Added` / `### Changed` / `### Fixed` / etc. subheadings).
+Check whether `CHANGELOG.md` exists at the project root. If not, note that it needs to be created following https://keepachangelog.com/en/1.1.0/ structure — `## [Unreleased]` section with `### Added` / `### Changed` / `### Fixed` / etc. subheadings.
 
-Draft an entry under `[Unreleased]` describing this change, derived from the design doc and the actual diff (`git diff` / `git status`) — not just the design doc's intent, in case implementation diverged. Show the drafted entry to the user and get confirmation on wording before writing it.
+Delegate drafting the entry to the `changelog-writer` subagent (`saga:changelog-writer` if there's a name collision) rather than reading the diff yourself — the diff can be large, and running `git diff`/`git status` in this session would leave that noise in context for the rest of the run (`/commit`, `/push`, etc. that follow). Give it whether `CHANGELOG.md` exists yet and `state.json`'s `design_doc` path. It reads the diff itself, in its own isolated context, and returns just the drafted entry.
+
+Show the drafted entry it returns to the user and get confirmation on wording before writing it into `CHANGELOG.md` yourself (creating the file with the Keep a Changelog header first if it didn't exist).
 
 ## 2. Commit
 
