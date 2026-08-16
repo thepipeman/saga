@@ -1,7 +1,7 @@
 {
   "name": "saga",
   "displayName": "Saga",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "A gated development workflow: codebase context bootstrapping, AI design review, AI implementation, and changelog/commit/PR finishing — from first rune to finished saga.",
   "author": {
     "name": "Aaron"
