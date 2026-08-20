@@ -87,10 +87,10 @@ moved around across recent releases). Then in a session:
 /plugin validate ./saga    # sanity-check the manifest/frontmatter first
 ```
 
-**Sharing with the team (optional, opt-in):** publish this directory as an
-entry in a `marketplace.json` (personal GitHub repo is enough) and let people
-`/plugin marketplace add <your-repo>` + `/plugin install saga`
-if they want it. Nobody is forced into it by cloning the main project repo.
+**Sharing with the team (optional, opt-in):** this repo already ships a
+`marketplace.json`, so teammates can register it and install without any
+publishing step. See [INSTALL.md](INSTALL.md) for the walkthrough. Nobody is
+forced into it by cloning the main project repo.
 
 ## Usage
 
