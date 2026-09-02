@@ -36,7 +36,7 @@ thorough. That part is still on you.
 
 | Skill | Covers |
 |---|---|
-| `spring-boot-patterns` | Layering, transaction boundaries, `@ImportHttpServices` REST clients, API versioning, JSpecify null-safety, security, `ProblemDetail` error handling |
+| `spring-boot-patterns` | Layering, transaction boundaries, `@ImportHttpServices` REST clients, API versioning, JSpecify null-safety, security, `ProblemDetail` error handling, Javadoc content rules |
 | `spring-data-jpa` | Entity mapping, repository design, fetching strategy, projections, pagination, N+1 — with depth in `references/entities.md`, `references/queries.md`, `references/performance.md` |
 | `jooq-conventions` | Codegen, DSL usage, query structure, record→DTO mapping |
 | `postgres-migrations` | Migration naming, schema organisation, indexing, backward-compatibility |

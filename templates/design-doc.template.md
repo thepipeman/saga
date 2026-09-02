@@ -4,23 +4,35 @@
 - **Status:** draft
 - **Author:** design-architect (AI-generated, pending human review)
 
+<!-- Diagrams are opt-in, not expected. Add one only when this change introduces a new
+     process/flow or alters an existing one and prose alone would leave it ambiguous.
+     Tests, config, and small mechanical changes need none.
+
+     On a re-run, rewrite this doc in place: it must describe only the current design.
+     Remove superseded decisions rather than appending revisions or "previously we decided"
+     notes — unless a rejected option is a live constraint on the implementation, in which
+     case state it as a constraint in the section it affects. -->
+
 ## Summary
 
 <!-- What's being built and why, a few sentences. -->
 
 ## Affected modules/services
 
-<!-- Name them specifically. -->
+<!-- Name them specifically. Prose by default — a graph LR belongs here only if module
+     boundaries themselves shift or a new module/service is introduced. -->
 
 ## Data model changes
 
 <!-- New/changed tables, jOOQ codegen implications, migration approach.
-     Include an erDiagram if new tables or FK relationships are introduced. -->
+     Add an erDiagram only for new tables or changed relationships — not for a column
+     addition, an index, or a constraint tweak. -->
 
 ## API/contract changes
 
 <!-- Request/response shapes, versioning implications.
-     Include a sequenceDiagram for any endpoint touching more than one service or with non-trivial async behavior. -->
+     Add a sequenceDiagram only when a new or changed flow crosses more than one service
+     or has non-trivial async behavior. A single endpoint in a single service is prose. -->
 
 ## Transaction boundaries
 
@@ -60,3 +72,4 @@
 - [ ] Security/compliance considerations are complete, not just present
 - [ ] Recommended implementation model matches my own read of the complexity
 - [ ] Open questions are actually resolved, not silently assumed away
+- [ ] Every decision here reflects the current design — no superseded options left in the doc

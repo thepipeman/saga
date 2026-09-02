@@ -187,6 +187,42 @@ Constructor injection only — no field injection (`@Autowired` on fields). If u
 
 Note that Lombok's value is much reduced on Java 25 — records cover the DTO and value-object cases outright, so reach for Lombok only for `@RequiredArgsConstructor` and `@Slf4j` on components. Never put Lombok's `@Data` on a JPA entity (see the `spring-data-jpa.mdc` rule for why that specifically breaks).
 
+## Javadoc and code comments
+
+Javadoc is written for the next developer reading this class months from now, with no memory of how it came to exist. It carries only what the code itself can't:
+
+- **Business context** — the problem this type or method solves, the rule it enforces, the invariant it protects, who consumes it and why that shapes the contract.
+- **Technical context and the decision behind it** — why it's built this way, the tradeoff taken, and any non-obvious constraint (ordering, idempotency, concurrency, external-call boundaries, compensating logic).
+
+**Never reference how the code was produced.** No mention of design docs, specs, instruction or requirement files, implementation notes, review phases, workflow steps, AI, agents, models, or prompts — and no `.cursor/` or `.claude/` paths. A future reader has none of that context, and a comment pointing at an artifact they can't find (or that has since changed) is worse than no comment. Describe the *code's* reasoning, not the process that generated it.
+
+```java
+// Wrong — points at process artifacts the reader has no access to
+/**
+ * Implements the refund flow described in the approved design doc,
+ * per the AI implementation pass. Tests limited to unit scope as requested.
+ */
+
+// Right — business context plus the decision and its reason
+/**
+ * Issues a refund against a settled payment.
+ *
+ * <p>Refunds are capped at the settled amount because the payment provider
+ * rejects over-refunds asynchronously, hours later, with no correlation id —
+ * so the cap is enforced here rather than relied on downstream.
+ *
+ * <p>The ledger write commits before the provider is called: the call is not
+ * transactional, and a failure after commit is reconciled by
+ * {@link RefundReconciliationJob} rather than rolled back.
+ *
+ * @param paymentId settled payment to refund
+ * @param amount    refund amount; must not exceed the settled amount
+ * @throws RefundExceedsSettlementException if the cap is breached
+ */
+```
+
+Skip Javadoc where it would only restate the signature — trivial getters, self-evident DTO records, straightforward delegation. An accurate short comment on the three methods that carry real business rules beats a docblock on every method. Same rule for inline comments: explain *why*, never narrate *what* the line does.
+
 ## Reference material
 
 | Topic | Rule | Use when |

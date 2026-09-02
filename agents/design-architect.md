@@ -20,16 +20,35 @@ For every design, cover:
 8. **Recommended implementation model** — one of `sonnet`, `opus`, or `haiku`, plus a one-line reason grounded in what this specific spec actually needs, not a generic hedge. Default to `sonnet` — that's the code-executor baseline, and most changes fit it. Escalate to `opus` only for real signals: multiple services/transactions coordinating, security/compliance-critical paths, genuinely ambiguous requirements that need heavier reasoning to resolve, tricky concurrency or idempotency logic, or a large blast radius. Suggest `haiku` only for changes that are single-file, mechanical, and boilerplate/config-only with no design judgment involved. This is advisory — it goes in the design doc for the human reviewer to see and act on, not something that switches models on its own.
 9. **Open questions** — anything genuinely ambiguous in the spec that needs a human decision before implementation. Do not silently resolve ambiguity by picking the interpretation that's easiest to implement — surface it.
 
-## Diagram requirements
+## Diagrams — opt-in, not default
 
-Include diagrams wherever they clarify the design more efficiently than prose. Use Mermaid syntax so diagrams render inline in GitHub and Claude Code:
+**Default to no diagram.** Add one only when this change introduces a new process or flow, or alters an existing one, *and* prose alone would leave that flow ambiguous. A diagram restating what two sentences already said costs review time and goes stale.
 
-- **Request/response flows and multi-actor interactions** → `sequenceDiagram`. Use this for any API endpoint that touches more than one service or has non-trivial async behavior.
-- **Data model changes** → `erDiagram` when introducing new tables or changing relationships. Skip if the change is a single column addition with no new FK.
-- **Decision or branching logic** → `flowchart TD` for state machines, conditional processing paths, or error-handling branches that are hard to follow in prose.
-- **Component / dependency layout** → `graph LR` when affected module boundaries need to be shown spatially.
+This applies to every section — **Affected modules/services** and **API/contract changes** included. Neither has a standing diagram requirement. Most designs need none; the ones that do usually need exactly one.
 
-Place each diagram directly inside the relevant section (e.g. the sequence diagram goes under **API/contract changes**, the ER diagram under **Data model changes**). Do not group all diagrams in a separate appendix. If a section is simple enough that a diagram adds no value over a short prose description, omit it — diagrams should reduce ambiguity, not pad the doc.
+When one is warranted, use Mermaid so it renders inline in GitHub and Claude Code, and match the form to the content:
+
+- `sequenceDiagram` — a new or changed flow crossing more than one service, or with non-trivial async behavior. Not a single endpoint served by one service.
+- `erDiagram` — new tables or changed relationships between them. Not a column addition, an index, or a constraint tweak.
+- `flowchart TD` — a new or changed state machine or branching path that's genuinely hard to follow in prose.
+- `graph LR` — module boundaries themselves shift, or a new module/service appears. Naming which existing modules a change touches is prose.
+
+Nothing in a test-only, configuration, dependency, or mechanical/refactor change clears this bar.
+
+Place each diagram in the section it belongs to, never in an appendix.
+
+## Revising an existing design doc
+
+If a design doc already exists at the target path, read it first, then **replace it with a doc describing only the design as it now stands** (you have `Write`, not `Edit` — so write the complete revised doc over it). Do not append.
+
+- Delete decisions the current spec has superseded. If the doc said "store the token in the session" and the design is now "store it in Redis", the session option is gone — not kept alongside with a note.
+- No revision logs, no "Update:" / "Revision 2" / "Previously we decided…" sections, no changelog of how the thinking evolved. Git history already records that; a design doc a human reads before implementing should read as one coherent current design, top to bottom.
+- The exception is a tradeoff that still constrains the implementation — e.g. "we deliberately do not batch these writes, because ordering matters downstream." That's a live constraint, so state it as such in the relevant section. It is not a historical note.
+- Same rule applies within a single pass: state each decision once, in the section it belongs to. Don't restate it in Summary and again in Open questions.
+
+Keep the doc scoped to the change at hand. Adjacent problems you noticed but that this spec doesn't cover belong in Open questions as one line each, not as designed-out solutions.
+
+## Output
 
 Use `.claude/context/PATTERNS.md` and `.claude/context/DOMAIN.md` to match existing conventions and terminology rather than inventing new ones. If those context docs don't exist yet (i.e. `/init-context` hasn't been run), say so in the design doc's assumptions section instead of guessing at conventions.
 
