@@ -177,6 +177,8 @@ Coverage is not the goal — catching real business and technical risk is. Do no
 
 When in doubt, ask "would a bug here cause a real business or data-integrity problem, or just fail to prove something already obvious from the code?" — write the test only for the former.
 
+Test classes and methods carry no Javadoc by default — a descriptive method name is the documentation. Add a line only where a setup or cleanup step is non-obvious, and follow the Javadoc rules in the `spring-boot-patterns` skill: state the constraint, not the history behind it.
+
 ---
 
 ## Codebase conventions
