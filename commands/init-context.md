@@ -2,13 +2,33 @@
 name: init-context
 description: Bootstrap reusable context documents and customize plugin skills for this project. For existing codebases it reads actual patterns and updates the skills to match; for new projects it keeps the generic skill baselines. Run once when adopting this workflow, or re-run with --refresh after major refactors.
 disable-model-invocation: true
-allowed-tools: Read, Grep, Glob, Write, Bash(git log:*), Bash(find:*), Bash(mkdir:*), AskUserQuestion
+allowed-tools: Read, Grep, Glob, Write, Bash(find:*), Bash(mkdir:*), AskUserQuestion
 argument-hint: "[--refresh]"
 ---
 
 You are bootstrapping this project for the saga plugin. The goal is twofold: (1) generate reusable context documents for future sessions, and (2) customise the plugin's generic skill baselines to reflect this project's actual conventions, so the design and implementation phases produce code that fits the codebase from day one.
 
 If `--refresh` was NOT passed and `.claude/context/` already contains these files, ask the user to confirm before overwriting rather than silently regenerating.
+
+---
+
+## Output rules — apply to everything this command writes
+
+These documents set up the local harness: a stable, reusable context that `/design` and `/implement` load on every future run. Their content is **how this project is built and what its rules are** — domain, standards, patterns, conventions. Nothing else. Two runs against the same codebase should produce substantively the same documents; if a sentence would differ only because it was written on a different day or by a different run, it doesn't belong.
+
+**Write:**
+
+- Conventions and rules, in the present tense, as they hold in the code today
+- Domain vocabulary and what each core concept means to the business
+- One concrete, representative example per convention, with a file path pointing at the real thing
+
+**Never write:**
+
+- **Change history.** No "recently migrated to…", "was previously…", "as of the latest refactor…", no digest of `git log`, and no account of what this `/init-context` run itself did. History lives in git; a context doc that carries it goes stale immediately and misleads every later session. The only exception is a live constraint a reader would otherwise undo — a deliberate workaround still in force, or a deviation the code depends on — and that's stated as a present-tense rule, not as a story about a change.
+- **File inventories.** Never enumerate the migration files, entity classes, controllers, endpoints, or any other directory listing — with or without a line of explanation each. Listing every file under `db/migration` and describing what each one did teaches nothing that opening the folder wouldn't, burns context on every future run, and is wrong the moment someone adds a file. Give the naming convention plus one example and point at the directory.
+- **Narration about the exploration** — "I looked at…", "this appears to be…", notes on how the analysis was performed.
+- **Generic technology explanation.** How Spring, JPA, jOOQ, or Flyway work in general is already in the skills. Write only what is specific to this project.
+- **Speculation or aspiration** — planned refactors, what the code should eventually do. Record what holds now; anything you couldn't confirm goes in the final report to the user, not into the documents as a hedge.
 
 ---
 
@@ -65,12 +85,20 @@ Use Glob/Grep/Read (read-only — do not modify source) to determine:
 
 ## Step 2 — Write context documents (existing projects)
 
-Create `.claude/context/` (if absent) and write the following. Use `${CLAUDE_PLUGIN_ROOT}/templates/ARCHITECTURE.md.template` as a starting structure for `ARCHITECTURE.md`; match its header style for the others. Keep each document under ~150 lines — link to specific source files rather than reproducing large code blocks.
+Create `.claude/context/` (if absent) and write the following, under the output rules above. Use `${CLAUDE_PLUGIN_ROOT}/templates/ARCHITECTURE.md.template` as a starting structure for `ARCHITECTURE.md`; match its header style for the others. Keep each document under ~150 lines — link to specific source files rather than reproducing large code blocks.
 
-- **`ARCHITECTURE.md`** — module boundaries, service topology, how requests flow through layers
-- **`PATTERNS.md`** — transaction boundary rules, persistence conventions, error handling, REST client patterns, security config style, naming conventions — the things a new contributor would learn by osmosis
-- **`DOMAIN.md`** — entity glossary, key business rules tied to specific entities
-- **`TESTING.md`** — test conventions, Testcontainers setup (container class names, base class, profile), coverage expectations, auth bypass mechanism
+Each document uses exactly the headings listed below, in this order, and no others. Fixed headings are what make the output deterministic across runs and refreshes — if a section has nothing to say for this project, write "None" under it rather than dropping it or inventing a replacement.
+
+- **`ARCHITECTURE.md`** — per the template: `## Services / modules`, `## Request flow`, `## Data stores`, `## Cross-cutting concerns`, `## Known deviations from the pattern above`
+- **`PATTERNS.md`** — `## Platform`, `## Persistence stack` (both required, per step 0b), then `## Layering`, `## Transaction boundaries`, `## Error handling`, `## REST clients`, `## Security`, `## Naming conventions` — the things a new contributor would learn by osmosis
+- **`DOMAIN.md`** — `## Glossary` (core entity or concept → what it means to the business, one line each), then `## Business rules` (the invariants that constrain code, tied to the concept they govern)
+- **`TESTING.md`** — `## Structure` (base classes, container setup, profiles), `## Conventions` (naming, fixtures, what gets tested at which level), `## Auth in tests`, `## Running tests`
+
+### Which lists are allowed
+
+The ban on inventories is about *reproducing a directory*, not about all lists. A **bounded structural list** is fine and often the clearest form: the modules in the build, the Postgres schemas and what each owns, the core domain concepts, the test profiles. These are small, stable, and each entry carries meaning a reader can't get from a filename.
+
+A **file listing** is not: migrations, entity classes, controllers, endpoints, DTOs, test classes. These grow without bound, go stale on the next commit, and each entry restates its own filename. The test is whether the list would need editing because someone added a routine file — if yes, replace it with the convention plus one example and a pointer to the directory.
 
 ---
 
@@ -78,7 +106,7 @@ Create `.claude/context/` (if absent) and write the following. Use `${CLAUDE_PLU
 
 Create `.claude/context/conventions/` inside the project (not inside the plugin) and write one file per skill. The plugin's skill files are never modified — this keeps the plugin safe for global installation shared across multiple projects. Each conventions file is the authoritative project-specific override for that skill; the plugin loads it at runtime.
 
-For **existing projects**, populate each file with concrete details discovered in step 1. For **new projects**, write a brief note that conventions are yet to be established and list any technology choices already known.
+For **existing projects**, populate each file with concrete details discovered in step 1 — the same output rules apply here as to the context docs: conventions and one example each, no inventories, no history. For **new projects**, write a brief note that conventions are yet to be established and list any technology choices already known.
 
 Write the conventions file only for the persistence stack chosen in step 0b — `spring-data-jpa.md` **or** `jooq-conventions.md`, not both. Writing both leaves the code-executor with two competing repository conventions, which is the exact ambiguity step 0b exists to remove. (If step 0b established a deliberate JPA-primary/jOOQ-secondary split, write both and state the module boundary at the top of each.)
 
@@ -110,7 +138,7 @@ Files to write and what to capture in each:
 
 **`.claude/context/conventions/postgres-migrations.md`**
 - Migration tool (Flyway or Liquibase) and key config (`locations`, `table`, `out-of-order`, etc.)
-- File naming convention with a concrete example from the repo
+- File naming convention, illustrated with one existing filename — never a listing of the migrations themselves
 - Schema organisation strategy (one Postgres schema per domain, single `public` schema, etc.) with the actual schema names and what each owns
 - Soft-delete convention (column name, type, default, partial index pattern)
 - Enum type declaration pattern and any associated casts
@@ -123,6 +151,24 @@ Files to write and what to capture in each:
 - HTTP testing library in use (RestAssured, MockMvc, etc.)
 - Test JWT / auth bypass mechanism (class name and how tokens are generated per role)
 - Shared test data pattern (`@Sql`, fixture classes, `@BeforeAll` inserts, etc.)
+
+---
+
+## Step 3b — Check each file as you write it
+
+Writing is where the output rules get violated, so the check belongs at the moment of writing, not after. Before each `Write` in steps 2 and 3, run the drafted content past the list below and cut anything that matches.
+
+**Do not re-read the files from disk to do this.** You wrote them in this session — their content is already in context, and a second `Read` of your own output buys nothing for real tokens.
+
+Cut on sight:
+
+- Any past-tense or comparative sentence about the code: "recently", "previously", "used to", "was migrated", "has been replaced", "unlike the older", "as of". Either the fact holds now and gets stated in the present tense, or it goes.
+- Any list where the entries are filenames from one directory — migrations above all, but also entity/controller/DTO/test-class rollcalls. Replace with convention + one example + directory path, per the list rules in step 2.
+- Any sentence describing this `/init-context` run: what was detected, generated, updated, or chosen. That belongs in the final report to the user, not in a file that future sessions load.
+- Any paragraph explaining how a framework works generally, with nothing project-specific in it.
+- Any heading not in the fixed set from step 2.
+
+On `--refresh`, the same list applies to whatever you carry forward from the existing documents — that content genuinely does need reading, but read each file once in step 2 as part of refreshing it, not a second time here. A refresh that carefully preserves history someone accumulated in `ARCHITECTURE.md` last quarter has done the opposite of its job — strip it, and note in the report what you removed so the user can object.
 
 ---
 
@@ -228,7 +274,7 @@ The build-command table covers the predictable, high-frequency cases; it deliber
 
 Report a short summary of:
 - Whether this was treated as a new or existing project
-- What was written (context docs, skill updates)
+- What was written (context docs, skill updates), and on `--refresh`, anything step 3b stripped out of pre-existing content
 - What was decided for permission friction (step 6): the scope chosen, exactly what was added to `.claude/settings.json`, what was deliberately skipped and why (e.g. "skipped `./gradlew *` — arbitrary execution"; "skipped `cat`/`git status` — already auto-allowed"), and a plain note that scoped Edit/Write means those calls stop being individually confirmed
 - Whether a `## Common commands` section was added to `CLAUDE.md`, and what it lists
 - Anything you were unsure about (ambiguous layering, conflicting patterns, conventions you couldn't confirm) so the user can correct generated content by hand
