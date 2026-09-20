@@ -11,6 +11,8 @@ If you find yourself in a project that is still on Boot 3.x or an older JDK, say
 
 See `references/java-25.md` for the language-level and virtual-thread guidance.
 
+Static-import static methods and constants wherever the bare name is unambiguous — `assertThat(...)`, `when(...)`, `requireNonNull(...)`, `DSL.*` — rather than qualifying them at every call site.
+
 Do not generate Boot 3.x-era code. The renames that most often trip up generated code:
 
 | Boot 4 | Replaced |
@@ -230,7 +232,7 @@ Skip it on trivial getters, self-evident records, plain delegation, and test met
 
 | Topic | Reference | Load when |
 |---|---|---|
-| Java 25 | `references/java-25.md` | Choosing between records/sealed types/pattern matching, enabling or tuning virtual threads, replacing `ThreadLocal` with scoped values, deciding whether a preview API is safe to use |
+| Java 25 | `references/java-25.md` | Choosing between records/sealed types/pattern matching, enabling or tuning virtual threads, replacing `ThreadLocal` with scoped values, deciding whether a preview API is safe to use, static-import exceptions |
 
 For persistence, load the skill matching this project's stack — `spring-data-jpa` or `jooq-conventions`.
 
