@@ -21,9 +21,14 @@ doc path if one was recorded in `state.json`.
    diff is the source of truth for what happened, not the design doc's
    forward-looking description. Note any material divergence.
 3. Draft one entry: a Keep a Changelog subheading (`### Added` / `### Changed`
-   / `### Fixed` / `### Removed` / etc.) plus a concise bullet describing the
-   change from a user/consumer perspective — not an implementation-detail
-   dump of every file touched.
+   / `### Fixed` / `### Removed` / etc.) plus one concise bullet. Rules:
+   - Describe the business value — what a user/consumer gains — not what
+     changed in the code.
+   - Include technical detail only when the entry is meaningless without it,
+     and keep it high-level (name the capability, not the classes or files).
+   - Mention an edge case only if the reader needs it, in a few words.
+   - Keep it short. A bullet that runs past two lines is a sign it's
+     describing implementation, not value.
 4. Return only the drafted subheading + bullet, plus a one-line note of
    anything in the diff that diverged from the design doc's stated intent, if
    applicable. Do not write to any file yourself — the orchestrator shows

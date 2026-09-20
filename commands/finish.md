@@ -14,7 +14,7 @@ Check whether `CHANGELOG.md` exists at the project root. If not, note that it ne
 
 Delegate drafting the entry to the `changelog-writer` subagent (`saga:changelog-writer` if there's a name collision) rather than reading the diff yourself — the diff can be large, and running `git diff`/`git status` in this session would leave that noise in context for the rest of the run (`/commit`, `/push`, etc. that follow). Give it whether `CHANGELOG.md` exists yet and `state.json`'s `design_doc` path. It reads the diff itself, in its own isolated context, and returns just the drafted entry.
 
-Show the drafted entry it returns to the user and get confirmation on wording before writing it into `CHANGELOG.md` yourself (creating the file with the Keep a Changelog header first if it didn't exist).
+Show the drafted entry it returns to the user and ask two things before touching the file: whether to add an entry at all, and if so, whether the wording is right. Not every change earns an entry — a fix to a feature that's still under `## [Unreleased]` is part of that feature, not a separate `### Fixed` item, and the user may prefer to skip it or fold it into the existing bullet. Only after they confirm, write the entry into `CHANGELOG.md` yourself (creating the file with the Keep a Changelog header first if it didn't exist). If they decline, skip to the commit step.
 
 ## 2. Commit
 
