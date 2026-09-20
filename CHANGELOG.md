@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-BETA] - 2026-09-20
+
+### Changed
+
+- `/finish` asks whether a changelog entry is wanted before adding one, and
+  keeps entries short and value-focused.
+- The Java skill prefers static imports.
+
 ## [1.0.0-ALPHA] - 2026-09-10
 
 First packaged release of the **saga** Claude Code plugin — a gated development
