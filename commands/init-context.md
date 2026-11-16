@@ -2,7 +2,7 @@
 name: init-context
 description: Bootstrap reusable context documents and customize plugin skills for this project. For existing codebases it reads actual patterns and updates the skills to match; for new projects it keeps the generic skill baselines. Run once when adopting this workflow, or re-run with --refresh after major refactors.
 disable-model-invocation: true
-allowed-tools: Read, Grep, Glob, Write, Bash(find:*), Bash(mkdir:*), AskUserQuestion
+allowed-tools: Read, Grep, Glob, Write, Edit, Bash(find:*), Bash(mkdir:*), AskUserQuestion
 argument-hint: "[--refresh]"
 ---
 
@@ -178,7 +178,7 @@ If the project has no `CLAUDE.md`, create one from `${CLAUDE_PLUGIN_ROOT}/templa
 
 ---
 
-## Step 5 — Initialize workflow state
+## Step 5 — Initialize workflow state and folders
 
 Create `.claude/workflow/state.json` if it doesn't exist:
 
@@ -190,6 +190,25 @@ Create `.claude/workflow/state.json` if it doesn't exist:
   "code_reviewed": false
 }
 ```
+
+Create the three workflow folders if absent (`mkdir -p`). These are the source of truth for saga's inputs and outputs — every command reads and writes here unless the user passes an explicit path:
+
+| Folder | Holds | Written by |
+|---|---|---|
+| `.claude/instructions/` | Specs / instructions the user writes for `/design` | The user |
+| `.claude/design-drafts/` | `<slug>-design.md` | `/design` |
+| `.claude/implementation-notes/` | `<slug>-notes.md` | `/implement` |
+
+Then gitignore all three in the project's root `.gitignore` (create it if absent). Append only the entries not already present — don't reorder or rewrite existing content:
+
+```
+# saga workflow inputs/outputs
+.claude/instructions/
+.claude/design-drafts/
+.claude/implementation-notes/
+```
+
+On `--refresh`, re-run this step as-is: it's idempotent, and it backfills any folder or ignore entry that's missing.
 
 ---
 
@@ -275,6 +294,7 @@ The build-command table covers the predictable, high-frequency cases; it deliber
 Report a short summary of:
 - Whether this was treated as a new or existing project
 - What was written (context docs, skill updates), and on `--refresh`, anything step 3b stripped out of pre-existing content
+- The workflow folders from step 5, which entries were added to `.gitignore`, and that specs go in `.claude/instructions/` for `/design` to pick up
 - What was decided for permission friction (step 6): the scope chosen, exactly what was added to `.claude/settings.json`, what was deliberately skipped and why (e.g. "skipped `./gradlew *` — arbitrary execution"; "skipped `cat`/`git status` — already auto-allowed"), and a plain note that scoped Edit/Write means those calls stop being individually confirmed
 - Whether a `## Common commands` section was added to `CLAUDE.md`, and what it lists
 - Anything you were unsure about (ambiguous layering, conflicting patterns, conventions you couldn't confirm) so the user can correct generated content by hand

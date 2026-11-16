@@ -35,7 +35,7 @@ under `.claude/context/conventions/`.
 
 ## Workflow
 
-1. `/design <spec.md>` — produces a design doc, stops for human review
+1. `/design [spec]` — reads the spec from `.claude/instructions/` (or a given path), writes `.claude/design-drafts/<slug>-design.md`, stops for human review
 2. `/implement` — implements the design; asks test scope (none / unit / unit+integration) up front
 3. `/mark-reviewed` — human gate, unlocks finishing
 4. `/finish` — changelog entry, commit, optional push/PR

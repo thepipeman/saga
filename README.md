@@ -95,8 +95,8 @@ forced into it by cloning the main project repo.
 ## Usage
 
 ```
-/init-context                      # once per project: generates .claude/context/*, CLAUDE.md, workflow state, offers a scoped Read/Edit/Write + build-command allowlist
-/design specs/PROJ-123.md          # phase 1: produces .claude/design-drafts/proj-123-design.md (incl. high-value Given-When-Then test scenarios + a recommended model), stops for review
+/init-context                      # once per project: generates .claude/context/*, CLAUDE.md, workflow state + gitignored .claude/{instructions,design-drafts,implementation-notes}/, offers a scoped Read/Edit/Write + build-command allowlist
+/design PROJ-123                   # phase 1: reads .claude/instructions/PROJ-123.md (or pass any path; no arg picks from the folder), produces .claude/design-drafts/proj-123-design.md (incl. high-value Given-When-Then test scenarios + a recommended model), stops for review
 # ... you read the design doc — no enforced gate, but read it before continuing ...
 /implement                         # phase 2: confirms the recommended model (if not sonnet) and asks test scope (none/unit/unit+integration — not asked when the design is test-only), then implements, writes .claude/implementation-notes/proj-123-notes.md
 # ... you review the diff ...
@@ -129,7 +129,7 @@ feature changes.
 
 ```mermaid
 flowchart TD
-    A([Write spec file]) --> B["/design spec.md\ndesign-architect reads spec\n+ context → design doc"]
+    A([Write spec in .claude/instructions/]) --> B["/design spec\ndesign-architect reads spec\n+ context → design doc"]
     B --> C{Review\ndesign doc}
     C -- needs changes --> B
     C -- looks good --> F["/implement\nasks test scope, then\ncode-executor reads design\n+ skills → code (+ tests if requested)"]

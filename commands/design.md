@@ -1,11 +1,21 @@
 ---
 name: design
 description: Phase 1 — AI Design Layer. Reads a markdown spec and produces a design document for human review before /implement is run.
-allowed-tools: Read, Grep, Glob, Write
-argument-hint: "<path-to-spec.md>"
+allowed-tools: Read, Grep, Glob, Write, AskUserQuestion
+argument-hint: "[spec-name-or-path]"
 ---
 
-Read the spec at `$1`. (Markdown file for now — a future version of this command will accept `--source=jira --ticket=<id>` once a JIRA MCP connector is wired up; keep that swap in mind and don't hardcode markdown-only assumptions into how you structure the design doc.)
+## Resolve the spec
+
+Specs live in `.claude/instructions/` (created by `/init-context`). Resolve `$1` in this order:
+
+1. **`$1` is a path that exists** (e.g. `specs/PROJ-123.md`) — use it as given; an explicit path always wins over the default folder.
+2. **`$1` is a bare name** (e.g. `PROJ-123` or `PROJ-123.md`) — look for it in `.claude/instructions/`, adding `.md` if missing.
+3. **No `$1`** — Glob `.claude/instructions/*.md`. One file: use it. Several: ask via `AskUserQuestion` which one, listing the most recently modified first. None: tell the user to put a spec in `.claude/instructions/` (or pass a path) and stop.
+
+If nothing resolves, say where you looked and stop. Everything below refers to the resolved path as "the spec".
+
+Read the spec. (Markdown file for now — a future version of this command will accept `--source=jira --ticket=<id>` once a JIRA MCP connector is wired up; keep that swap in mind and don't hardcode markdown-only assumptions into how you structure the design doc.)
 
 ## Choose the model for the design step itself
 
@@ -23,7 +33,7 @@ If you land on `opus`, don't invoke it yet — ask the user to confirm first. St
 
 Delegate the actual design work to the `design-architect` subagent (namespaced as `saga:design-architect` if there's a name collision) — it has read-only tools and is scoped specifically to producing design docs, not code. Invoke it with the `model` parameter set to whichever model you chose above (overriding its default frontmatter model). Give it:
 
-- The spec content at `$1`
+- The spec content
 - The context docs in `.claude/context/` (ARCHITECTURE.md, PATTERNS.md, DOMAIN.md, TESTING.md) if present — read `init-context` has not been run, tell the user and proceed without them, noting the gap in the design doc
 - The template at `${CLAUDE_PLUGIN_ROOT}/templates/design-doc.template.md`
 - The existing design doc at `.claude/design-drafts/<slug>-design.md`, if one is already there from an earlier run — tell the subagent explicitly to rewrite it in place rather than append to it, so superseded decisions are removed instead of accumulating
@@ -37,7 +47,7 @@ Update `.claude/workflow/state.json`:
 ```json
 {
   "phase": "design",
-  "spec_ref": "$1",
+  "spec_ref": "<resolved spec path>",
   "design_doc": "<path to the design doc just written>",
   "design_model": "<sonnet or opus, whichever you used to author it>",
   "code_reviewed": false
