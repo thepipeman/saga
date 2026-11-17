@@ -84,6 +84,18 @@ private SelectField<Bar> barRow() {
 
 Only acceptable for Postgres-specific constructs the DSL genuinely cannot express cleanly. Isolate in a clearly-named private method — never inline in business logic.
 
+## Review checklist
+
+Violations to flag when reviewing a change, with their default severity — **High** (fix before merge), **Medium** (fix in this change or accept with a reason), **Low** (optional). `[guardrail]` marks a rule a test (ArchUnit or a linter) could enforce instead of a reviewer. The section in parentheses has the detail.
+
+- **High** — String-concatenated SQL built from input. (DSL usage rules)
+- **High** — Edited generated sources or hand-written generated classes. (Codegen)
+- **Medium** — A generated jOOQ record returned past the repository layer. `[guardrail]` (Records vs. DTOs)
+- **Medium** — `@Transactional` on a repository. `[guardrail]` (Repository structure)
+- **Medium** — Dependent sequential DSL calls for one request where a join would do, or a loop of single-row writes instead of a batch. (DSL usage rules, Nested object projection)
+- **Medium** — A migration changes a table this layer reads, but codegen and the queries weren't updated in the same change. (Codegen)
+- **Low** — Raw SQL inline in business logic instead of an isolated, named private method. (Raw SQL)
+
 ---
 
 ## Codebase conventions

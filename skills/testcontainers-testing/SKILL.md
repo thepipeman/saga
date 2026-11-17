@@ -134,6 +134,18 @@ Coverage is not the goal — catching real business and technical risk is. Skip 
 
 Test classes and methods carry no Javadoc by default — the name is the documentation. Add a line only where a setup or cleanup step is non-obvious, following the Javadoc rules in the `spring-boot-patterns` skill.
 
+## Review checklist
+
+Violations to flag when reviewing a change, with their default severity — **High** (fix before merge), **Medium** (fix in this change or accept with a reason), **Low** (optional). `[guardrail]` marks a rule a test (ArchUnit or a linter) could enforce instead of a reviewer. The section in parentheses has the detail.
+
+- **High** — A business-critical, idempotency-sensitive, or transaction-around-external-call path in the change has no test. (What "adequately tested" means)
+- **Medium** — A mocked internal bean or repository instead of a real boundary, or H2 as a stand-in for Postgres. `[guardrail]` (Test strategy)
+- **Medium** — A test asserts an exception thrown by an IO client instead of the HTTP outcome and persisted state. (Writing a test)
+- **Medium** — A non-reproducible test: random values or the real clock. (Writing a test)
+- **Medium** — `@MockBean` / `@SpyBean`, JUnit 4, a `latest` image tag, or a container started per test method. `[guardrail]` for the removed APIs. (Version baseline, Testcontainers setup)
+- **Medium** — A new context configuration (distinct `@MockitoBean`s, properties, or imports) that splits the shared context. (Testcontainers setup)
+- **Low** — Naming not given-when-then, a body without given/when/then, property-by-property asserts, or a test that restates another. (Writing a test)
+
 ---
 
 ## Codebase conventions
