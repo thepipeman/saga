@@ -294,7 +294,7 @@ The build-command table covers the predictable, high-frequency cases; it deliber
 Report a short summary of:
 - Whether this was treated as a new or existing project
 - What was written (context docs, skill updates), and on `--refresh`, anything step 3b stripped out of pre-existing content
-- The workflow folders from step 5, which entries were added to `.gitignore`, and that specs go in `.claude/instructions/` for `/design` to pick up
+- The workflow folders from step 5, which entries were added to `.gitignore`, and that specs go in `.claude/instructions/` for `/design` to pick up, starting from `${CLAUDE_PLUGIN_ROOT}/templates/spec.template.md`
 - What was decided for permission friction (step 6): the scope chosen, exactly what was added to `.claude/settings.json`, what was deliberately skipped and why (e.g. "skipped `./gradlew *` — arbitrary execution"; "skipped `cat`/`git status` — already auto-allowed"), and a plain note that scoped Edit/Write means those calls stop being individually confirmed
 - Whether a `## Common commands` section was added to `CLAUDE.md`, and what it lists
 - Anything you were unsure about (ambiguous layering, conflicting patterns, conventions you couldn't confirm) so the user can correct generated content by hand

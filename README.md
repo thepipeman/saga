@@ -96,13 +96,28 @@ forced into it by cloning the main project repo.
 
 ```
 /init-context                      # once per project: generates .claude/context/*, CLAUDE.md, workflow state + gitignored .claude/{instructions,design-drafts,implementation-notes}/, offers a scoped Read/Edit/Write + build-command allowlist
-/design PROJ-123                   # phase 1: reads .claude/instructions/PROJ-123.md (or pass any path; no arg picks from the folder), produces .claude/design-drafts/proj-123-design.md (incl. high-value Given-When-Then test scenarios + a recommended model), stops for review
+/design PROJ-123                   # phase 1: reads .claude/instructions/PROJ-123.md (or pass any path; no arg picks from the folder), asks first if the spec has no test scenarios, produces .claude/design-drafts/proj-123-design.md (flow diagram, critical changes + blast radius, Given-When-Then test plan, recommended model/split), stops for review
 # ... you read the design doc — no enforced gate, but read it before continuing ...
-/implement                         # phase 2: confirms the recommended model (if not sonnet) and asks test scope (none/unit/unit+integration — not asked when the design is test-only), then implements, writes .claude/implementation-notes/proj-123-notes.md
+/implement                         # phase 2: confirms the recommended model (if not sonnet) and asks test scope (none/unit/unit+integration — not asked when the design is test-only), then implements only the spec's scope, writes .claude/implementation-notes/proj-123-notes.md (TL;DR + details)
 # ... you review the diff ...
 /mark-reviewed                     # phase 3 gate
 /finish --push --pr                # phase 4: changelog, commit, push, open PR
 ```
+
+### Writing a spec
+
+A spec is a scoped, test-first slice of a larger design — small enough to build and
+review in one pass. Start from [`templates/spec.template.md`](templates/spec.template.md):
+
+- **High-level design** — the overall design this task is one part of
+- **Scope** — the stage or task this session delivers, and what it leaves for later
+- **Test scenarios** — Given-When-Then outcomes this session must produce
+
+A stage of a high-level design usually splits into a few tasks: the core flow and state
+transitions with integrations stubbed, one task per integration, then end-to-end
+wiring with the remaining integration tests. `/design` recommends a further split
+when a scope is still too big to review, and recommends extra test scenarios only
+inside the spec's scope.
 
 Each phase writes `.claude/workflow/state.json` in the *project*, not the
 plugin — that's how the finish hook knows whether code review happened. If

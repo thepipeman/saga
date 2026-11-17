@@ -34,7 +34,9 @@ Otherwise, ask. `code-executor` has no interactive tools, so it cannot pause mid
 > - **Unit tests only** — mocked-dependency tests for new/changed business logic.
 > - **Unit + integration tests** — adds Testcontainers-backed repository/HTTP-level tests per the `testcontainers-testing` skill.
 
-Outside the test-only case above, do not guess or default this silently — always ask, even if the design doc's Test Plan section lists scenarios. Listing scenarios in the design doc is not the same as requesting they be implemented now.
+If the design's Test plan has `[spec]` scenarios, the developer wrote those as the outcomes this session must produce: list the option that covers them first and mark it **(Recommended)** — **Unit + integration** if any scenario crosses a repository, HTTP or external-integration boundary, otherwise **Unit tests only**. Still ask; it's a recommendation, not a default.
+
+Outside the test-only case above, do not guess or default this silently — always ask. Scenarios in the design doc are not the same as a request to implement them now.
 
 ## Delegating
 
@@ -46,10 +48,10 @@ Delegate to the `code-executor` subagent (`saga:code-executor`) with:
 - The test scope from above, explicitly: none, unit-only, or unit+integration — whether the user answered it or you inferred it from a test-only design
 - The model decision from above, if a switch was confirmed
 
-If the answer includes tests and the design doc specifies acceptance criteria, the tests should map to them explicitly.
+If the answer includes tests, they map to the design's `[spec]` scenarios explicitly.
 
 ## After implementation
 
-Update `.claude/workflow/state.json` phase to `"implemented"`. Summarize what was changed, note which model actually ran this pass (and whether that matched what was requested, per the best-effort caveat above), point the user at the implementation notes `code-executor` wrote to `.claude/implementation-notes/<slug>-notes.md`, and remind the user this now needs human review (phase 3) — run `/mark-reviewed` once that's done, before `/finish` will proceed.
+Update `.claude/workflow/state.json` phase to `"implemented"`. Summarize what was changed (the notes' TL;DR is enough — don't restate the details), note which model actually ran this pass (and whether that matched what was requested, per the best-effort caveat above), point the user at the implementation notes `code-executor` wrote to `.claude/implementation-notes/<slug>-notes.md`, and remind the user this now needs human review (phase 3) — run `/mark-reviewed` once that's done, before `/finish` will proceed.
 
 If this run (or the last few `/implement` runs) triggered noticeable Bash permission prompts — beyond the handful of exact build commands `/init-context` step 6 may have pre-approved — suggest the user run the `fewer-permission-prompts` skill. It scans actual session transcripts for repeated read-only Bash/MCP calls and backfills `.claude/settings.json`'s `permissions.allow` accordingly. This is a suggestion only: don't invoke it automatically, since it's a Claude Code built-in outside this plugin's control and changing the permission allowlist should stay an explicit, user-driven action.
