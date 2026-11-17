@@ -5,6 +5,27 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-BETA2] - 2026-11-17
+
+### Added
+
+- Spec template with a high-level design reference, a scope, and Given-When-Then
+  test scenarios. `/design` asks before designing when a spec has no scenarios,
+  offering to stop or have scenarios recommended.
+- Implementation notes template: a short TL;DR followed by technical details.
+
+### Changed
+
+- Design docs are easier to review: a flow diagram for new or changed flows, a
+  critical-changes table with blast radius, and a one-line-per-scenario test
+  plan tagged `[spec]` or `[recommended]`. Oversized scopes get a recommended
+  split into separate tasks.
+- `/implement` builds only the spec's scope, covers every `[spec]` scenario
+  when tests are in scope, and recommends a test scope to match.
+- Workflow folders live under `.claude/` (`instructions/`, `design-drafts/`,
+  `implementation-notes/`) and are gitignored by `/init-context`. `/design`
+  reads specs from `.claude/instructions/` by default.
+
 ## [1.0.0-BETA] - 2026-09-20
 
 ### Changed
