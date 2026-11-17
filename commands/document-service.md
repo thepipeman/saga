@@ -33,7 +33,7 @@ Write `docs/about-this-service/README.md` covering:
 - High-level architecture, with a `graph LR` or `flowchart TD` Mermaid diagram of module/service boundaries where that clarifies more than prose
 - A **Features** list linking to each per-feature doc written in Step 4
 
-Be explicit and concise — this is a reference, not an exhaustive spec. No filler, no restating the obvious.
+Be explicit and concise — this is a reference, not an exhaustive spec. No filler, no restating the obvious. Write every doc in this command by `${CLAUDE_PLUGIN_ROOT}/templates/writing-rules.md`.
 
 ## Step 4 — Write one doc per feature
 

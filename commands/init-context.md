@@ -21,6 +21,7 @@ These documents set up the local harness: a stable, reusable context that `/desi
 - Conventions and rules, in the present tense, as they hold in the code today
 - Domain vocabulary and what each core concept means to the business
 - One concrete, representative example per convention, with a file path pointing at the real thing
+- All prose by `${CLAUDE_PLUGIN_ROOT}/templates/writing-rules.md`
 
 **Never write:**
 
