@@ -1,5 +1,5 @@
 ---
-description: Spring Boot 4 layering, transaction boundary, REST client, API versioning, and security conventions. Use when implementing or reviewing any service, controller, or repository-layer code.
+description: Java / Spring Boot 4 coding standards — general code rules, layering and packaging, validation, conditional wiring, transactions, error handling, REST clients, API versioning, security, logging, and Javadoc. Use when implementing or reviewing any service, controller, or repository-layer code.
 alwaysApply: false
 ---
 
@@ -10,8 +10,6 @@ alwaysApply: false
 If you find yourself in a project that is still on Boot 3.x or an older JDK, say so plainly and stop rather than silently downgrading the code you generate — the fix is to upgrade the project, and that's a decision for the human, not something to work around one file at a time.
 
 See `spring-boot-patterns-java-25.mdc` for the language-level and virtual-thread guidance.
-
-Static-import static methods and constants wherever the bare name is unambiguous — `assertThat(...)`, `when(...)`, `requireNonNull(...)`, `DSL.*` — rather than qualifying them at every call site.
 
 Do not generate Boot 3.x-era code. The renames that most often trip up generated code:
 
@@ -27,64 +25,147 @@ Do not generate Boot 3.x-era code. The renames that most often trip up generated
 
 Undertow, Spock integration, and the embedded uber-jar launch scripts were removed outright. Anything deprecated in 3.x is gone — don't reach for it.
 
-## Layering
+## General code rules
 
-Controller → Service (or Command) → Repository. Controllers do not contain business logic; they map requests/responses and delegate. Business rules live in the service/command layer. Repositories are persistence-only.
-
-Controllers accept and return DTOs — records, not entities or generated database records. For the repository layer itself, follow whichever persistence rule matches this project's stack: `spring-data-jpa.mdc` or `jooq-conventions.mdc`.
-
-## Transaction boundaries
-
-- `@Transactional` is applied at the **method level only** — never at the class level.
-- Class-level `@Transactional` is an anti-pattern: it silently wraps every method (including helpers and void utilities), making it impossible to audit which operations actually need a transaction.
-- Read-only operations use `@Transactional(readOnly = true)`.
-- **Never make an external HTTP call or message publish inside a `@Transactional` scope.** Do the DB write first, let it commit, then make the external call. If the external call fails, apply compensating logic — rollback cannot cover a network call.
+1. **Keep it simple.** The smallest design that meets the requirement. No speculative abstraction, flags, layers, or configuration.
+2. **Fail fast.** Take typed values (`UUID`, enums, value types) in signatures, not `String`s parsed later. Reject bad input and missing configuration at the earliest boundary.
+3. **Name for action.** Method names are explicit verbs stating the action and the key: `findCareSessionById(..)`, not `careSession(..)`. Never name a method or helper after state (`auditRows` → `readAuditRows`, `assertAuditRecorded`).
+4. **Named conditions.** A condition of two or more terms becomes a named predicate method (`isSessionAwaitingVerification(..)`).
+5. **Small methods** — roughly one screen (~20 lines).
+6. **Member order (Sun style).** Public methods first, private methods last — tests and helpers included.
+7. **Calls and declarations** go on one line when they fit; otherwise one argument/parameter per line with the closing parenthesis on its own line. Never wrap some arguments and leave others beside the opening parenthesis. Variable declarations follow the same rule.
+8. **Use established libraries** (e.g. Apache Commons Lang3) for string/collection/object checks instead of hand-rolled helpers. For security-sensitive formats (tokens, signatures, encodings) use a vetted library and never hand-assemble them (e.g. Nimbus JOSE for JWTs).
+9. **Lombok is optional.** Use it (`@Slf4j`, `@RequiredArgsConstructor`, `@With`, `@Builder`) only if the project already does; otherwise write plain Java. Never put `@Data` on a JPA entity (see the `spring-data-jpa-entities.mdc` rule).
+10. **Static-import** static methods and constants wherever the bare name is unambiguous — `assertThat(...)`, `requireNonNull(...)`, `DSL.*` — rather than qualifying them at every call site.
 
 ```java
-// Correct — method-level, not class-level
-@Transactional
-public void createFoo(FooInput input) { ... }
+// Wrong — partial wrapping
+var session = careSessionService.startCareSession(customerId,
+        deviceId, channel);
 
-@Transactional(readOnly = true)
-public Foo findById(Long id) { ... }
+// Right
+var session = careSessionService.startCareSession(
+        customerId,
+        deviceId,
+        channel
+);
 ```
 
-## REST client
+## Layering and packaging
 
-Prefer the declarative `@HttpExchange` interface backed by `RestClient` for new external integrations — it keeps the HTTP details in one place and is easier to test:
+Controller → Service → Repository. Controllers map requests/responses and delegate; business rules live in services; repositories are persistence-only.
+
+1. **Package by feature.** Each feature owns its controller, service, repository, and `model` package.
+2. **Configuration** (`@Configuration`, filters, `@ConfigurationProperties`, exception-handler config) lives in a dedicated `configuration` package, grouped by concern.
+3. **The feature's `model` package** holds its DTOs (records) and entities, and nothing else.
+4. **Visibility:** `@Controller` / `@Repository` (including Spring Data repository interfaces) are package-private; `@Service` is public.
+5. **Data crossing controller ↔ service or service ↔ service is a DTO** (`*Dto`; `Request`/`Response` suffixes allowed) — never an entity or a generated database record.
+6. **No interface for a single implementation.** Interfaces exist only for two or more implementations or a deliberate port; testability alone is not a reason.
+7. **Never read request-scoped context** (thread-locals, request holders, `SecurityContextHolder`) inside a service to obtain a parameter — the controller passes it as a method argument.
+8. **Inject `Clock`** instead of calling `Instant.now()`; route non-deterministic ids through an injectable provider.
+9. **Use the Spring-managed `ObjectMapper` / `JsonMapper`**; never construct one.
+
+Constructor injection only — no `@Autowired` fields. A circular dependency signals a domain-boundary problem, not a `@Lazy` fix.
+
+For the repository layer itself, follow whichever persistence rule matches this project's stack: `spring-data-jpa.mdc` or `jooq-conventions.mdc`.
+
+## Records and mapping
+
+- Records are the default for DTOs and `@ConfigurationProperties`. Where Lombok is used, records carry `@With`, and records with more than a few components expose `@Builder` and are built through it.
+- Every conversion — entity ↔ DTO, HTTP request/response ↔ DTO — goes through a MapStruct mapper. No hand-written mappers.
+
+## Validation
+
+- Every controller request body and validated parameter carries `@Valid`; constraints sit on the request records so a bad payload fails before it reaches a service.
+- `@ConfigurationProperties` are records annotated `@Validated`, with bean-validation constraints (`@NotNull`, `@NotBlank`, `@NotEmpty`, `@Valid` on nested types).
+- Required configuration has no default value: use an environment placeholder (`${VAR}`) or an obvious `<PLACEHOLDER_NAME>` that validation rejects, so a missing value fails startup naming the property.
+- Cross-property invariants are checked at startup.
 
 ```java
-@HttpExchange("/api/resource")
-public interface ExternalServiceClient {
+@Validated
+@ConfigurationProperties("billing")
+public record BillingProperties(
+        @NotNull URI baseUrl,
+        @NotNull Duration readTimeout,
+        @NotBlank String apiKey
+) { }
+```
 
-    @PostExchange
-    ResponseDto create(@RequestBody RequestDto request);
+## Conditional wiring
 
-    @GetExchange("/{id}")
-    ResponseDto getById(@PathVariable String id);
+- Keep conditional behavior in **one entry point** per optional capability — a single selector/facade/registry bean, or one configuration class — that decides what is active. Everything else depends on that entry point, never on the flag or on whether a bean exists.
+- Don't scatter `@ConditionalOnBean` / `@ConditionalOnProperty` across integration services, and don't make consumers take `Optional<...>` of gated beans to work around them.
+- Prefer runtime decisions from data or configuration (an `enabled` flag on a definition record, resolved in the entry point) over startup-time bean exclusion. Fail closed when the selected dependency is unusable.
+
+## Transactions
+
+- `@Transactional` at the **method level only** — never on the class, which silently wraps every method and makes it impossible to audit which operations need one. Reads use `@Transactional(readOnly = true)`; writes use bare `@Transactional`.
+- A multi-write flow has **one transaction boundary**: the service method that owns the whole unit of work, not the helpers or repositories it calls. Orchestrating code that calls external systems is itself not transactional.
+- **Never span an external call** (HTTP, KMS, messaging) with a transaction: commit first, call out, then open a separate transaction for the follow-up write. Rollback cannot undo a network call.
+- A write that must survive the caller's rollback (e.g. audit) uses `@Transactional(propagation = REQUIRES_NEW)`.
+
+## Error handling
+
+- **One error-code enum**, `ERR_NNN_NAME(code, HttpStatus)`, numbered in ranges per domain.
+- **One application exception type** carrying the code, a description, and an optional cause (e.g. `AppException`). Don't grow a hierarchy of exception subclasses — add an error code instead.
+- **One class holds every `@ExceptionHandler`** and returns `ProblemDetail` (RFC 9457) with an `errorCode` property. Controllers and services never catch-and-translate.
+- Authentication-style failures return matched wording and timing so callers can't enumerate accounts.
+- Dependency failures always map to a single code with a fixed detail (`"<dependency> call failed"`). Downstream status, body, URL, and ids never reach the response or the logs.
+- A downstream outcome that is a business result (404 = not found) gets its own code and is decided before dependency-failure translation.
+- Never let a raw persistence exception reach the client: map `OptimisticLockingFailureException` and `DataIntegrityViolationException` to error codes, and never surface a constraint name.
+
+```java
+public enum ErrorCode {
+    ERR_100_PAYMENT_NOT_FOUND(100, NOT_FOUND),
+    ERR_101_REFUND_EXCEEDS_SETTLEMENT(101, UNPROCESSABLE_ENTITY),
+    ERR_900_DEPENDENCY_FAILED(900, BAD_GATEWAY);
+    // code, status, constructor, accessors
 }
-```
 
-Register it with `@ImportHttpServices` (Framework 7) rather than hand-building an `HttpServiceProxyFactory`. The annotation is repeatable, groups clients by name, and defaults to a `RestClient`-backed proxy:
+@RestControllerAdvice
+class ApiExceptionHandler {
 
-```java
-@Configuration
-@ImportHttpServices(group = "billing", types = ExternalServiceClient.class)
-public class HttpClientConfig {
-
-    @Bean
-    RestClientHttpServiceGroupConfigurer billingClientConfigurer(BillingProperties properties) {
-        return groups -> groups.filterByName("billing")
-            .forEachClient((group, builder) -> builder.baseUrl(properties.baseUrl()));
+    @ExceptionHandler(AppException.class)
+    ProblemDetail handleAppException(AppException ex) {
+        var problem = ProblemDetail.forStatusAndDetail(ex.errorCode().status(), ex.getMessage());
+        problem.setProperty("errorCode", ex.errorCode().name());
+        return problem;
     }
 }
 ```
 
-`basePackages` / `basePackageClasses` work in place of `types` when a group has many interfaces. Base URLs, timeouts, and default headers are configurable per group under `spring.http.client.service.<group>.*` — keep them in `application.yml`, not in Java.
+## REST clients
 
-Use the imperative `RestClient` API only when you need per-request logic the declarative form can't accommodate. For OAuth2, that's usually not a reason to drop down: Spring Security 7 supports HTTP service groups directly and picks up a `@ClientRegistrationId` annotation on the `@HttpExchange` method.
+**Detect first.** Inspect the build file, generator plugins, and existing clients before choosing; on a new project, ask the developer.
 
-Never use `RestTemplate`.
+1. **Contract-first with a generator (preferred).** If a generator plugin is in use — the official [OpenAPI Generator plugin](https://openapi-generator.tech/docs/plugins/) or an in-house wrapper around it — use the generated clients and follow the project's wiring. Never hand-write calls to endpoints the contract describes.
+2. **No generator, contract available.** Recommend adopting the official OpenAPI Generator Gradle/Maven plugin.
+3. **Generator declined or no contract.** Offer the alternatives and let the developer choose: Spring `@HttpExchange` interfaces, a hand-written `RestClient` wrapper, or `WebClient`. One pattern per project. Never `RestTemplate`.
+
+Rules for every option:
+
+- Apply transport rules once per client through a shared builder: explicit connect/read timeouts, retries and redirects off, observation registry set.
+- Keep Spring's default status handling so failures arrive as `RestClientException` — no `if`/`else` on status codes, no per-client error mapping.
+- **One wrapper service per downstream.** It owns the dependency name, the endpoint template (never a URL with ids in it), request mapping, and 2xx sanity checks, and routes every client failure through one shared exception translator that classifies and logs it.
+- A 2xx answer the caller can't use (empty body, missing field) is a failure, never an empty result.
+- Base URLs, credentials, and timeouts come from validated properties. Never edit generated sources.
+
+When `@HttpExchange` is chosen, register it with `@ImportHttpServices` (Framework 7) rather than hand-building an `HttpServiceProxyFactory`; group-level settings live under `spring.http.client.service.<group>.*`:
+
+```java
+@Configuration
+@ImportHttpServices(group = "billing", types = BillingClient.class)
+class BillingClientConfiguration {
+
+    @Bean
+    RestClientHttpServiceGroupConfigurer billingClientConfigurer(BillingProperties properties) {
+        return groups -> groups.filterByName("billing")
+                .forEachClient((group, builder) -> builder.baseUrl(properties.baseUrl().toString()));
+    }
+}
+```
+
+For OAuth2, Spring Security 7 supports HTTP service groups directly via `@ClientRegistrationId` on the `@HttpExchange` method.
 
 ## API versioning
 
@@ -126,18 +207,21 @@ import org.jspecify.annotations.NullMarked;
 
 ## Security
 
-Keep security configuration IDP-agnostic. Use Spring Security abstractions — do not hard-code provider class names (Keycloak, Authentik, Okta, etc.) in production code. The issuer URI and claim mappings belong in `application.yml`, not in Java.
+- Never put secrets, raw credentials, full PII, or financial data in a token claim, a log line, a response, or a table.
+- Persist only hashes of bearer-style values (tokens, tickets, codes).
+- Authorization relies on server-side configuration or data (allow-lists, roles), never on caller-supplied values.
+- Use vetted libraries for cryptography and token handling; never hand-roll them.
 
-Standard stateless resource-server pattern:
+Keep security configuration IDP-agnostic: Spring Security abstractions, no provider class names (Keycloak, Authentik, Okta) in production code; the issuer URI and claim mappings belong in `application.yml`. Standard stateless resource server:
 
 ```java
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-public class SecurityConfig {
+class SecurityConfiguration {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -145,60 +229,35 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().authenticated()
             )
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
+            .oauth2ResourceServer(oauth2 -> oauth2.jwt(withDefaults()));
         return http.build();
     }
 }
 ```
 
-Use `@EnableMethodSecurity` and `@PreAuthorize` for fine-grained method-level checks. Extract role/authority mapping logic into a dedicated converter class rather than inlining it in `SecurityConfig`.
+Use `@PreAuthorize` for fine-grained method-level checks, and extract role/authority mapping into a dedicated converter class rather than inlining it in the security configuration.
 
-## Error handling
+## Logging
 
-Exceptions map to HTTP responses via a centralized `@RestControllerAdvice` — don't catch-and-translate inside controllers or services. Use domain-specific exception types with clear names (e.g. `ResourceNotFoundException`, `DuplicateResourceException`) that the advice maps to the correct status codes.
-
-Return `ProblemDetail` (RFC 9457) rather than an ad-hoc error map, so every service in the estate produces the same error shape:
+- Plain, conversational sentences with `{}` placeholders for the values that matter. No `key=value` or `event=` prefixes, no tags, and don't repeat what the message already says.
+- Log every mutation **once**, in the service facade method (or the controller) that performs it — not in the helpers beneath it.
+- Log before throwing: the error code, what happened, and what to check. `error` only for conditions worth waking on-call; otherwise `warn`/`info`.
+- Never log secrets, raw credentials, or full PII.
 
 ```java
-@RestControllerAdvice
-public class GlobalExceptionHandler {
-
-    @ExceptionHandler(ResourceNotFoundException.class)
-    ProblemDetail handleNotFound(ResourceNotFoundException ex) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    ProblemDetail handleValidation(MethodArgumentNotValidException ex) {
-        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
-        problem.setTitle("Validation failed");
-        problem.setProperty("errors", ex.getBindingResult().getFieldErrors().stream()
-            .collect(toMap(FieldError::getField, FieldError::getDefaultMessage, (a, b) -> a)));
-        return problem;
-    }
-}
+log.info("Refunded {} of payment {}", amount, paymentId);
+log.warn("{}: refund of {} exceeds the settled amount of payment {}; check for an earlier partial refund",
+        ERR_101_REFUND_EXCEEDS_SETTLEMENT, amount, paymentId);
 ```
-
-Extend `ResponseEntityExceptionHandler` when you want Spring's built-in handling of the standard MVC exceptions and only need to override a few. Never let a raw persistence exception reach the client — map `OptimisticLockingFailureException` to `409 Conflict` and `DataIntegrityViolationException` to `409` or `400`, and never surface the underlying constraint name in the response body.
-
-Validate at the edge: `@Valid` on every `@RequestBody`, and constraints declared on the DTO record components rather than checked imperatively in the service.
-
-## Dependency injection
-
-Constructor injection only — no field injection (`@Autowired` on fields). If using Lombok, `@RequiredArgsConstructor` is fine. No circular service dependencies; if one appears it signals a domain boundary problem, not a `@Lazy` fix.
-
-Note that Lombok's value is much reduced on Java 25 — records cover the DTO and value-object cases outright, so reach for Lombok only for `@RequiredArgsConstructor` and `@Slf4j` on components. Never put Lombok's `@Data` on a JPA entity (see the `spring-data-jpa.mdc` rule for why that specifically breaks).
 
 ## Javadoc and code comments
 
-**Default to none.** Write Javadoc only where the code can't speak for itself — one of:
+**Document what is not obvious.** Self-evident members — `isUserPresent()`, trivial getters, simple delegates, test methods whose name already says it — get none. Add Javadoc where the purpose, a caveat, or a complexity isn't clear from the name and signature.
 
-- **Business context** — the rule enforced, the invariant protected, the problem solved.
-- **Technical decision** — why it's built this way, or a non-obvious ordering, idempotency, or concurrency constraint.
+**Simple by default:** a one-sentence **summary** of what it is for, plus the **caveat** (why, a trap, a non-obvious rule). Add more only for a real underlying complexity — ordering, concurrency, failure semantics, side effects. Never restate what the signature or body already shows. Inline comments explain *why*, never narrate *what*.
 
-Skip it on trivial getters, self-evident records, plain delegation, and test methods whose name already says it. One accurate line on the two methods carrying real business rules beats a docblock on every method.
-
-**One or two lines.** A summary sentence, plus a single short `<p>` only for a genuine hack or workaround a reader would otherwise "fix". Longer than that is an essay — cut it. Inline comments explain *why*, never narrate *what*.
+- `findActivePushTarget` — "Returns the push token of the most recent active device; a customer can have several devices."
+- `sendPush` — "Sends a push event to the customer's active device."
 
 **Describe the code as it stands, not the change that produced it.** "now", "previously", "unlike before", "used to", "refactored to" — banned; history lives in git. Where a prior state is load-bearing (a workaround for an external bug), state the constraint, not the story.
 
@@ -214,17 +273,15 @@ Skip it on trivial getters, self-evident records, plain delegation, and test met
  * cleanup, e.g. ...
  */
 
-// Right — the constraint, stated once
+// Right — summary plus the caveat
 /** Deletes persisted rows in FK-safe order; the shared context leaks them into other tests otherwise. */
 
-// Right — business context plus the decision and its reason
+// Right — summary, caveat, and the failure semantics that make it non-obvious
 /**
  * Issues a refund against a settled payment, capped at the settled amount.
  *
- * <p>The provider rejects over-refunds asynchronously with no correlation id, so the
- * cap cannot be enforced downstream.
- *
- * @throws RefundExceedsSettlementException if the cap is breached
+ * <p>The provider rejects over-refunds asynchronously with no correlation id, so the cap is
+ * enforced here and a breach fails with {@code ERR_101_REFUND_EXCEEDS_SETTLEMENT}.
  */
 ```
 

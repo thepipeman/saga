@@ -138,8 +138,9 @@ The sort must end in a unique column (typically the id) or the keyset has no sta
 The JPA equivalent of building a condition up from `DSL.noCondition()` in jOOQ. Extend `JpaSpecificationExecutor` and compose:
 
 ```java
-public interface OrderRepository extends ListCrudRepository<Order, UUID>,
-                                         JpaSpecificationExecutor<Order> { }
+interface OrderRepository extends
+        ListCrudRepository<Order, UUID>,
+        JpaSpecificationExecutor<Order> { }
 ```
 
 ```java

@@ -25,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Workflow folders live under `.claude/` (`instructions/`, `design-drafts/`,
   `implementation-notes/`) and are gitignored by `/init-context`. `/design`
   reads specs from `.claude/instructions/` by default.
+- Generated Java follows one set of coding standards: feature packages, a single
+  error-code exception, contract-first REST clients, plain-sentence logging, and
+  integration-first tests with no mocks.
 
 ## [1.0.0-BETA] - 2026-09-20
 

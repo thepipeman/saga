@@ -36,11 +36,11 @@ thorough. That part is still on you.
 
 | Skill | Covers |
 |---|---|
-| `spring-boot-patterns` | Layering, transaction boundaries, `@ImportHttpServices` REST clients, API versioning, JSpecify null-safety, security, `ProblemDetail` error handling, Javadoc content rules |
+| `spring-boot-patterns` | General code rules, package-by-feature layering, validation, conditional wiring, transaction boundaries, error-code `ProblemDetail` handling, contract-first REST clients, API versioning, JSpecify null-safety, security, logging, Javadoc content rules |
 | `spring-data-jpa` | Entity mapping, repository design, fetching strategy, projections, pagination, N+1 — with depth in `references/entities.md`, `references/queries.md`, `references/performance.md` |
 | `jooq-conventions` | Codegen, DSL usage, query structure, record→DTO mapping |
 | `postgres-migrations` | Migration naming, schema organisation, indexing, backward-compatibility |
-| `testcontainers-testing` | Unit vs. integration split, `@ServiceConnection`, `@DataJpaTest`/`@JooqTest` slices, query-count assertions |
+| `testcontainers-testing` | Integration-first, no-mocks testing (WireMock, `@ServiceConnection`), given-when-then naming and structure, reproducible fixtures, query-count assertions |
 
 `spring-data-jpa` and `jooq-conventions` are **mutually exclusive** — a project
 picks one as its primary data-access layer. `/init-context` step 0b detects it

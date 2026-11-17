@@ -1,24 +1,59 @@
 ---
 name: testcontainers-testing
-description: Testcontainers and unit/integration test conventions for Spring Boot 4. Use whenever writing tests as part of an implementation.
+description: Integration-first test conventions for Spring Boot 4 — Testcontainers, WireMock, no mocks, given-when-then naming and structure, and reproducible fixtures. Use whenever writing tests as part of an implementation.
 ---
 
 ## Version baseline
 
 **Java 25 and Spring Boot 4.x — always.** JUnit 5 only; JUnit 4 and the Spock integration were removed in Boot 4. Two further changes bite immediately if you write tests from muscle memory:
 
-- `@MockBean` / `@SpyBean` are **removed**. Use `@MockitoBean` / `@MockitoSpyBean`, and declare them on the test class — they are not allowed on `@Configuration` classes.
+- `@MockBean` / `@SpyBean` are **removed**. Where a bean genuinely has to be replaced (a generated API client — see below), use `@MockitoBean` on the test class; it is not allowed on `@Configuration` classes.
 - `@SpringBootTest` **no longer auto-provides** MockMvc, WebTestClient, or `TestRestTemplate`. Add `@AutoConfigureMockMvc` or `@AutoConfigureTestRestTemplate` explicitly.
 
-`MockitoTestExecutionListener` is gone; use Mockito's `MockitoExtension` directly where you need it.
+## Test strategy
 
-## Unit vs. integration
+1. **Integration tests by default.** Tests enter at the system boundary — an HTTP call to the real endpoint — and extend one shared base class. Test processes, not single methods. Write unit tests only when the developer explicitly asks for them, and then only for specific fragile logic such as validators or parsers.
+2. **No mocks.** Stub hand-written HTTP clients with WireMock, cloud services with LocalStack/Testcontainers, and arrange state by inserting rows. The one exception: when the boundary is a generated API client, replace that bean and return or throw the generated response objects instead of WireMock stubs.
+3. **Never test against H2** as a stand-in for Postgres. Dialect differences in types, casing, `jsonb`, arrays, upserts, and constraint behavior mean a green H2 suite tells you nothing about production.
 
-- Service/command business logic gets unit tests with mocked dependencies — no container, fast feedback.
-- Repository-layer code gets integration tests against a real Postgres via Testcontainers. This is not optional for either persistence stack: jOOQ-generated queries and Hibernate-generated SQL both have to run against real Postgres semantics, not an in-memory substitute.
-- Full HTTP-level flows (controller → service → repository) use `@SpringBootTest` with the real application context and a running container.
+## Writing a test
 
-Never test against H2 as a stand-in for Postgres. Dialect differences in types, casing, `jsonb`, arrays, upserts, and constraint behavior mean a green H2 suite tells you nothing about production.
+1. **Short, given-when-then names** that carry the whole scenario compactly: `shouldRejectRequestWhenPhoneNumberIsInvalid`, `shouldLockSessionAfterThreeFailedAttempts`. No underscores, no sentences; a `@DisplayName`, if used, repeats the same meaning briefly.
+2. **One test class per feature**, grouped into `@Nested` classes — one per scenario. Use `@ParameterizedTest` when methods differ only by parameters.
+3. **Body is `// given` / `// when` / `// then`.** Assert whole objects, not one property at a time.
+4. **Reproducible:** no random values; a fixed clock and fixed ids through the injectable seams (`Clock`, id provider).
+5. **JSON in text blocks** (`"""`), never escaped strings.
+6. **Read state back** through a public service/repository method when one exists; use `JdbcTemplate` only when there is no read path.
+7. **Never assert exceptions thrown by IO clients.** Assert the HTTP outcome (status, error code, detail) and the persisted state.
+8. **Dependency failures are one parameterized matrix** over downstream × failure kind (4xx, 5xx, timeout), asserting the fixed failure detail and that provider body content is absent from the response.
+9. **One outcome-assertion helper per terminal result**; scenarios differ only in setup and arguments.
+10. **Less code is better.** A test that restates another is deleted. Reuse stubs and helpers before writing new ones; extract a shared helper once a second test needs the same logic.
+11. **`@DirtiesContext` only** for tests that mutate the application context.
+
+```java
+class RefundIntegrationTest extends BaseIntegrationTest {
+
+    @Nested
+    class WhenPaymentIsSettled {
+
+        @Test
+        void shouldRefundUpToSettledAmount() {
+            // given
+            insertSettledPayment(PAYMENT_ID, new BigDecimal("50.00"));
+
+            // when
+            var response = postRefund(PAYMENT_ID, """
+                    { "amount": "20.00" }
+                    """);
+
+            // then
+            assertThat(response.statusCode()).isEqualTo(201);
+            assertThat(refundService.findRefundsByPaymentId(PAYMENT_ID))
+                    .containsExactly(new RefundDto(REFUND_ID, PAYMENT_ID, new BigDecimal("20.00"), FIXED_NOW));
+        }
+    }
+}
+```
 
 ## Testcontainers setup
 
@@ -26,7 +61,7 @@ Prefer `@ServiceConnection` over `@DynamicPropertySource`. It wires the datasour
 
 ```java
 @TestConfiguration(proxyBeanMethods = false)
-public class ContainerConfig {
+public class ContainerConfiguration {
 
     @Bean
     @ServiceConnection
@@ -37,65 +72,17 @@ public class ContainerConfig {
 ```
 
 ```java
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(ContainerConfig.class)
+@SpringBootTest(webEnvironment = RANDOM_PORT)
+@Import({ContainerConfiguration.class, FixedClockConfiguration.class})
 @ActiveProfiles("test")
 public abstract class BaseIntegrationTest { }
 ```
 
-A container defined as a `@Bean` is managed by the Spring context and shared across every test class using the same context — that is the sharing mechanism, so don't also hand-roll a singleton holder. If the project instead uses a static `@Container` field, mark it `static` and apply `@ServiceConnection` there so it starts once per JVM rather than once per test class:
+A container defined as a `@Bean` is managed by the Spring context and shared across every test class using the same context — that is the sharing mechanism, so don't also hand-roll a singleton holder. If the project instead uses a static `@Container` field, mark it `static` and apply `@ServiceConnection` there so it starts once per JVM rather than once per test class. Never start and stop a container per test method. Pin the image tag — `postgres:17-alpine`, never `latest`.
 
-```java
-@Container
-@ServiceConnection
-static final PostgreSQLContainer<?> DB = new PostgreSQLContainer<>("postgres:17-alpine");
-```
-
-Never start and stop a container per test method. Pin the image tag — `postgres:17-alpine`, never `latest` — so a test run is reproducible.
+Keep every test class on the same context configuration (the shared base class) so Spring reuses one context; each distinct set of `@MockitoBean`s, properties, or imports starts another.
 
 Migrations run against the test container the same way they run in real environments (same Flyway/Liquibase config). Do not hand-roll a separate test schema: if the migrations are wrong, the tests should be the thing that catches it.
-
-## Repository-layer tests
-
-Use the narrowest slice that exercises real SQL, and stop Spring from swapping in an embedded database.
-
-**Spring Data JPA** — `@DataJpaTest` gives you Flyway, the `EntityManager`, and the repositories without the web layer. It is transactional and rolls back per test by default:
-
-```java
-@DataJpaTest
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(ContainerConfig.class)
-class OrderRepositoryTest {
-
-    @Autowired OrderRepository repository;
-    @Autowired TestEntityManager entityManager;
-
-    @Test
-    void findsByCustomerReference() { ... }
-}
-```
-
-Two JPA-specific hazards in this slice:
-
-- **The rollback-per-test transaction hides flush failures.** A constraint violation surfaces at flush, which without an explicit `entityManager.flush()` may never happen inside the test. Call `flush()` before asserting on anything the database is supposed to reject.
-- **The persistence context makes reads look correct when they aren't.** A `findById` right after a `save` returns the cached instance without ever querying. `entityManager.flush()` then `entityManager.clear()` before the read, so the assertion exercises real SQL and real mapping.
-
-**jOOQ** — `@JooqTest` gives you Flyway and the `DSLContext` without the full application context:
-
-```java
-@JooqTest(properties = {"spring.test.database.replace=none"})
-@Import(ContainerConfig.class)
-@ActiveProfiles("test")
-class FooRepositoryTest {
-
-    @Autowired DSLContext dsl;
-    FooRepository repo;
-
-    @BeforeEach void setUp() { repo = new FooRepository(dsl); }
-
-    @Test void shouldCreateFoo() { ... }
-}
-```
 
 ## Asserting query counts (JPA)
 
@@ -105,61 +92,31 @@ An N+1 that a reviewer misses will pass every functional test. On any read path 
 var stats = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
 stats.clear();
 
-service.listOrders();
+orderService.findOrdersByCustomerId(CUSTOMER_ID);
 
 assertThat(stats.getPrepareStatementCount()).isEqualTo(1);
 ```
 
 Enable `spring.jpa.properties.hibernate.generate_statistics: true` in the test profile only. See the `spring-data-jpa` skill's `references/performance.md`.
 
-## Web-layer tests
-
-```java
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@AutoConfigureMockMvc
-class OrderControllerTest { ... }
-```
-
-For an isolated controller slice, `@WebMvcTest(OrderController.class)` plus `@MockitoBean` for the service is faster and needs no container:
-
-```java
-@WebMvcTest(OrderController.class)
-class OrderControllerSliceTest {
-
-    @Autowired MockMvcTester mvc;
-    @MockitoBean OrderService orderService;
-}
-```
-
 ## Security in integration tests
 
-For `@SpringBootTest` tests that hit secured endpoints, override the `JwtDecoder` bean with a `@TestConfiguration` that issues HMAC-signed tokens locally — this removes the IDP from the test dependency chain:
+For tests that hit secured endpoints, override the `JwtDecoder` bean with a `@TestConfiguration` that accepts HMAC-signed tokens minted locally — this removes the IDP from the test dependency chain:
 
 ```java
 @TestConfiguration
-class TestSecurityConfig {
-    @Bean @Primary
+class TestSecurityConfiguration {
+
+    @Bean
+    @Primary
     JwtDecoder jwtDecoder() {
-        SecretKeySpec key = new SecretKeySpec("test-key-long-enough".getBytes(UTF_8), "HmacSHA256");
+        var key = new SecretKeySpec("test-key-long-enough-for-hs256".getBytes(UTF_8), "HmacSHA256");
         return NimbusJwtDecoder.withSecretKey(key).build();
     }
 }
 ```
 
-Mock any OAuth2 client registration beans that would try to contact a real auth server:
-
-```java
-@MockitoBean
-ClientRegistrationRepository clientRegistrationRepository;
-```
-
-For slice tests, `spring-security-test`'s `SecurityMockMvcRequestPostProcessors.jwt()` is simpler than minting a real token.
-
-## Test data
-
-Build fixtures through the domain's own constructors or a small object-mother class, not through raw SQL inserts — an insert that bypasses validation can set up state the application could never produce, and the test then proves nothing. `@Sql` scripts are acceptable for bulk reference data that a migration doesn't already seed.
-
-Each test sets up the state it needs. Tests that depend on data left behind by an earlier test fail in isolation and pass in a suite, which is the worst debugging experience available.
+Mint the tokens with Nimbus JOSE, never by hand-assembling the JWT. Replace OAuth2 client registrations that would contact a real auth server with an `InMemoryClientRegistrationRepository` whose token URI points at WireMock, not a mock.
 
 ## Build-time codegen (jOOQ projects only)
 
@@ -167,17 +124,15 @@ If jOOQ sources are generated at build time against a Testcontainers instance ra
 
 ## What "adequately tested" means
 
-Coverage is not the goal — catching real business and technical risk is. Do not write a test for every public method or every branch just because it exists; skip trivial CRUD, straightforward validation, and delegation with no logic of its own. Prioritize:
+Coverage is not the goal — catching real business and technical risk is. Skip trivial CRUD, straightforward validation, and delegation with no logic of its own. Prioritize:
 
-- Business-critical logic: anything the design doc's Test plan flags as high-value, plus non-obvious branching a bug in would actually cost something.
+- Business-critical processes: anything the design doc's Test plan flags as high-value, plus non-obvious branching a bug in would actually cost something.
 - Idempotency-sensitive paths: a "call it twice" test asserting the correct idempotent outcome.
-- Transaction-boundary logic around external calls: force the external call to fail and assert the DB state is consistent (the write should not have persisted, or compensating logic should have run).
-- Optimistic locking: if an entity carries `@Version`, one test asserting a concurrent modification produces `OptimisticLockingFailureException`.
+- Transaction boundaries around external calls: make the downstream fail and assert the persisted state is consistent (the write did not persist, or compensating logic ran).
+- Optimistic locking: if an entity carries `@Version`, one test asserting a concurrent modification maps to the conflict error code.
 - Any migration that changes an existing table in a way that could break existing data: a test that exercises the affected read/write path against a container built from the full migration history.
 
-When in doubt, ask "would a bug here cause a real business or data-integrity problem, or just fail to prove something already obvious from the code?" — write the test only for the former.
-
-Test classes and methods carry no Javadoc by default — a descriptive method name is the documentation. Add a line only where a setup or cleanup step is non-obvious, and follow the Javadoc rules in the `spring-boot-patterns` skill: state the constraint, not the history behind it.
+Test classes and methods carry no Javadoc by default — the name is the documentation. Add a line only where a setup or cleanup step is non-obvious, following the Javadoc rules in the `spring-boot-patterns` skill.
 
 ---
 

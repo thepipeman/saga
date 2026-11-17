@@ -48,7 +48,7 @@ Record deconstruction patterns and `_` for unused bindings are both standard. No
 
 **Flexible constructor bodies** (final in 25) let you validate or normalize before `super(...)` / `this(...)` instead of passing an expression through a static helper.
 
-**Static imports whenever possible** for static methods and constants — `assertThat(...)`, `mock(...)`, `when(...)`, `Map.entry` → `entry(...)`, `Comparator.comparing` → `comparing(...)`, `Duration.ofSeconds` → `ofSeconds(...)`, `Collectors.toList` → `toList()`, `DSL.*` in jOOQ code, `Objects.requireNonNull` → `requireNonNull(...)`. Qualified calls (`Assertions.assertThat`, `Mockito.when`) are noise at every call site. Keep the qualifier only when two imported names collide or the bare name is genuinely ambiguous (`max` with no context, `of` on a line that could be a `List`, `Set`, or `Map`).
+**Static imports whenever possible** for static methods and constants — `assertThat(...)`, `stubFor(...)`, `urlPathEqualTo(...)`, `Map.entry` → `entry(...)`, `Comparator.comparing` → `comparing(...)`, `Duration.ofSeconds` → `ofSeconds(...)`, `Collectors.toList` → `toList()`, `DSL.*` in jOOQ code, `Objects.requireNonNull` → `requireNonNull(...)`. Qualified calls (`Assertions.assertThat`, `WireMock.stubFor`) are noise at every call site. Keep the qualifier only when two imported names collide or the bare name is genuinely ambiguous (`max` with no context, `of` on a line that could be a `List`, `Set`, or `Map`).
 
 ## Virtual threads
 

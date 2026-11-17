@@ -17,29 +17,29 @@ The common case for mixing is a JPA project that drops to jOOQ for a handful of 
 
 ## Repository structure
 
-Repositories use `DSLContext` for all queries. `@Transactional` is applied at the **method level only** — never on the class.
+Repositories are package-private and use `DSLContext` for all queries. They carry no `@Transactional` — the service method that owns the unit of work holds the boundary. Repository methods return `Optional` for "no result"; the service decides whether that is an error.
 
 ```java
 @Repository
-@RequiredArgsConstructor
-public class FooRepository {
+class FooRepository {
 
     private final DSLContext dsl;
 
-    @Transactional
-    public Long create(Foo foo) {
+    FooRepository(DSLContext dsl) {
+        this.dsl = dsl;
+    }
+
+    UUID insertFoo(FooDto foo) {
         return dsl.insertInto(FOO)
             .set(FOO.NAME, foo.name())
             .returning(FOO.ID)
             .fetchAny(FOO.ID);
     }
 
-    @Transactional(readOnly = true)
-    public Foo findById(Long id) {
+    Optional<FooDto> findFooById(UUID id) {
         return dsl.selectFrom(FOO)
             .where(FOO.ID.eq(id))
-            .fetchOptional(/* mapping */)
-            .orElseThrow(() -> new ResourceNotFoundException(Foo.class, id));
+            .fetchOptional(mapping(FooDto::new));
     }
 }
 ```

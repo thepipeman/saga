@@ -23,7 +23,7 @@ If the user picks the recommended model, attempt to invoke `code-executor` with 
 
 ## Before delegating: ask about test scope
 
-**Skip this question entirely when the work itself is test work.** If the design doc's changes are confined to the test side — adding missing coverage, fixing or de-flaking existing tests, restructuring fixtures or base classes, migrating a test framework — with no production source touched, then asking "should this include tests?" is a question with one possible answer. Offering **No tests** there would mean implementing nothing. In that case don't ask: pass the scope the design doc already implies (`unit` if it stays with mocked-dependency tests, `unit+integration` if it reaches Testcontainers-backed repository/HTTP tests) and state in the post-implementation summary which one you inferred, so a wrong read is visible and correctable.
+**Skip this question entirely when the work itself is test work.** If the design doc's changes are confined to the test side — adding missing coverage, fixing or de-flaking existing tests, restructuring fixtures or base classes, migrating a test framework — with no production source touched, then asking "should this include tests?" is a question with one possible answer. Offering **No tests** there would mean implementing nothing. In that case don't ask: pass the scope the design doc already implies (`unit` if it stays with context-free tests of fragile logic such as validators or parsers, `unit+integration` if it reaches HTTP-boundary integration tests) and state in the post-implementation summary which one you inferred, so a wrong read is visible and correctable.
 
 Decide this from the design doc's stated scope and file list, not from a guess. If the design touches production code *and* tests — even a small production change alongside a larger test cleanup — it is not test-only: ask the question normally.
 
@@ -31,10 +31,10 @@ Otherwise, ask. `code-executor` has no interactive tools, so it cannot pause mid
 
 > "Should this implementation pass include tests?"
 > - **No tests** — implementation only. Best when the design is still being explored and you want to see the shape of the code before locking in test scaffolding (saves tokens; you can request tests explicitly once the approach is settled).
-> - **Unit tests only** — mocked-dependency tests for new/changed business logic.
-> - **Unit + integration tests** — adds Testcontainers-backed repository/HTTP-level tests per the `testcontainers-testing` skill.
+> - **Unit tests only** — only for specific fragile logic (validators, parsers); no containers, no mocks.
+> - **Unit + integration tests** — HTTP-boundary integration tests (Testcontainers, WireMock) as the primary coverage, per the `testcontainers-testing` skill.
 
-If the design's Test plan has `[spec]` scenarios, the developer wrote those as the outcomes this session must produce: list the option that covers them first and mark it **(Recommended)** — **Unit + integration** if any scenario crosses a repository, HTTP or external-integration boundary, otherwise **Unit tests only**. Still ask; it's a recommendation, not a default.
+If the design's Test plan has `[spec]` scenarios, the developer wrote those as the outcomes this session must produce: list the option that covers them first and mark it **(Recommended)** — **Unit + integration** unless every scenario is confined to fragile logic such as a validator or parser, in which case **Unit tests only**. Still ask; it's a recommendation, not a default.
 
 Outside the test-only case above, do not guess or default this silently — always ask. Scenarios in the design doc are not the same as a request to implement them now.
 

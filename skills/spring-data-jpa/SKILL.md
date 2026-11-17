@@ -19,7 +19,7 @@ Java 25 shows up in this skill in three places specifically: records are the def
 
 2. **Flyway owns the schema; Hibernate validates it.** `spring.jpa.hibernate.ddl-auto: validate` in every environment including tests. Never `update`, never `create-drop`. Schema changes go through a migration — see the `postgres-migrations` skill.
 
-3. **Entities never cross the service boundary.** Controllers accept and return DTOs (records). Map inside the service or use a projection in the query. Returning an entity from a controller couples your API shape to your schema and re-triggers lazy loads during serialization.
+3. **Entities never cross the service boundary.** Controllers accept and return DTOs (records). Map with a MapStruct mapper inside the service, or use a projection in the query. Returning an entity from a controller couples your API shape to your schema and re-triggers lazy loads during serialization.
 
 4. **Every association is `LAZY`.** `@ManyToOne` and `@OneToOne` default to `EAGER` — always override them. An EAGER association is a join you pay for on every single load of that entity, including loads that never touch it.
 
@@ -36,8 +36,9 @@ Java 25 shows up in this skill in three places specifically: records are the def
 Extend the narrowest interface that fits. `JpaRepository` drags in `flush`, `saveAllAndFlush`, `deleteAllInBatch` and the rest whether or not you want them exposed:
 
 ```java
-public interface OrderRepository extends ListCrudRepository<Order, UUID>,
-                                         ListPagingAndSortingRepository<Order, UUID> {
+interface OrderRepository extends
+        ListCrudRepository<Order, UUID>,
+        ListPagingAndSortingRepository<Order, UUID> {
 
     @EntityGraph(attributePaths = "items")
     Optional<Order> findWithItemsById(UUID id);
