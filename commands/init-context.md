@@ -77,7 +77,7 @@ Use Glob/Grep/Read (read-only — do not modify source) to determine:
 - **REST client pattern** — `RestClient`, `@HttpExchange`, `RestTemplate`, `WebClient`, Feign — what's used and how it's configured (interceptors, error handling, auth)
 - **Security approach** — JWT resource server, session-based, IDP in use; how roles/authorities are extracted from the token; Spring Security config style
 - **Testing conventions** — test framework, Testcontainers usage and container setup pattern, base test class name, test profile names, HTTP testing library (RestAssured / MockMvc), auth bypass mechanism in tests
-- **Build tooling** — Maven/Gradle, CI config, any lint/static-analysis rules (ArchUnit, Checkstyle, etc.)
+- **Build tooling** — Maven/Gradle, CI config, any lint/static-analysis rules (ArchUnit, Checkstyle, etc.) and where ArchUnit tests live, and whether a dependency vulnerability check is configured. That means the OWASP `org.owasp.dependencycheck` Gradle plugin (`./gradlew dependencyCheckAnalyze`) or `dependency-check-maven` (`./mvnw dependency-check:check`). Step 3a records both.
 - **Domain vocabulary** — core entities and what they're called in code vs. any business glossary (README, docs/, package names)
 - **Shared/utility libraries** — any internal BOM or common modules providing base exception types, command abstractions, pagination helpers, logging interceptors, etc.
 
@@ -107,6 +107,13 @@ A **file listing** is not: migrations, entity classes, controllers, endpoints, D
 Create `.claude/context/conventions/` inside the project (not inside the plugin) and write one file per skill. The plugin's skill files are never modified — this keeps the plugin safe for global installation shared across multiple projects. Each conventions file is the authoritative project-specific override for that skill; the plugin loads it at runtime.
 
 For **existing projects**, populate each file with concrete details discovered in step 1 — the same output rules apply here as to the context docs: conventions and one example each, no inventories, no history. For **new projects**, write a brief note that conventions are yet to be established and list any technology choices already known.
+
+**Every conventions file ends with a `## Review checklist`.** Reviewers read that section, including people and tools that don't have the plugin's skills, so it has to be complete without them:
+
+- Start from the matching skill's `## Review checklist`, keeping its severity and `[guardrail]` marks.
+- Rewrite or drop any item this project's conventions override, so the reviewer never sees two conflicting rules.
+- Add project-specific items in the same form: a violation, a severity, and the section that explains it. For example, "**Medium**: an entity that doesn't extend `BaseEntity`".
+- On a new project, copy the skill's checklist as it is.
 
 Write the conventions file only for the persistence stack chosen in step 0b — `spring-data-jpa.md` **or** `jooq-conventions.md`, not both. Writing both leaves the code-executor with two competing repository conventions, which is the exact ambiguity step 0b exists to remove. (If step 0b established a deliberate JPA-primary/jOOQ-secondary split, write both and state the module boundary at the top of each.)
 
@@ -154,9 +161,23 @@ Files to write and what to capture in each:
 
 ---
 
+## Step 3a — Write the review guide
+
+Write `.claude/context/REVIEW.md` from `${CLAUDE_PLUGIN_ROOT}/templates/REVIEW.md.template`, keeping its headings, severity table, cross-cutting checks, and report format as they are. Replace each `<!-- -->` placeholder with this project's facts:
+
+- **Context:** a line for each context doc written in step 2.
+- **Convention map:** the persistence stack from step 0b, plus one row per area. Use the project's real path globs (source roots, the migration directory, the test roots), each mapped to the conventions file from step 3 that governs it.
+- **Requirement sources, item 3:** where this project keeps requirement docs (PRDs, high-level designs) under `docs/` or similar, or "None".
+- **Dependency check:** the command found in step 1, or "None".
+- **Guardrails:** the ArchUnit (or comparable) test location found in step 1, or "None".
+
+Never copy checklist items into REVIEW.md. They live in the conventions files, and REVIEW.md only points to them. For a new project, fill in the convention map from the planned layout, and write "None" for anything not yet known.
+
+---
+
 ## Step 3b — Check each file as you write it
 
-Writing is where the output rules get violated, so the check belongs at the moment of writing, not after. Before each `Write` in steps 2 and 3, run the drafted content past the list below and cut anything that matches.
+Writing is where the output rules get violated, so the check belongs at the moment of writing, not after. Before each `Write` in steps 2, 3, and 3a, run the drafted content past the list below and cut anything that matches.
 
 **Do not re-read the files from disk to do this.** You wrote them in this session — their content is already in context, and a second `Read` of your own output buys nothing for real tokens.
 
@@ -166,7 +187,7 @@ Cut on sight:
 - Any list where the entries are filenames from one directory — migrations above all, but also entity/controller/DTO/test-class rollcalls. Replace with convention + one example + directory path, per the list rules in step 2.
 - Any sentence describing this `/init-context` run: what was detected, generated, updated, or chosen. That belongs in the final report to the user, not in a file that future sessions load.
 - Any paragraph explaining how a framework works generally, with nothing project-specific in it.
-- Any heading not in the fixed set from step 2.
+- Any heading not in the fixed set from step 2 (for REVIEW.md, the template's headings).
 
 On `--refresh`, the same list applies to whatever you carry forward from the existing documents — that content genuinely does need reading, but read each file once in step 2 as part of refreshing it, not a second time here. A refresh that carefully preserves history someone accumulated in `ARCHITECTURE.md` last quarter has done the opposite of its job — strip it, and note in the report what you removed so the user can object.
 
@@ -175,6 +196,8 @@ On `--refresh`, the same list applies to whatever you carry forward from the exi
 ## Step 4 — Wire into CLAUDE.md
 
 If the project has no `CLAUDE.md`, create one from `${CLAUDE_PLUGIN_ROOT}/templates/CLAUDE.md.template`. If one exists, add a pointer to the four context files if one isn't already present (see the template's `## Context` section for the wording) — a plain reference, not an `@`-import. The four docs are read directly by `/design`, `/implement`, and `/document-service` when they need them; `@`-importing them into `CLAUDE.md` would load all four into every session regardless of task, which is wasted context on anything that isn't one of those three. Don't disturb existing content while adding this.
+
+In the same way, add the template's `## Code review` section if it isn't already present. It's a plain pointer to `.claude/context/REVIEW.md`, so reviews (including Claude Code's built-in `/code-review`) apply the project's conventions and severities without loading them into every session.
 
 ---
 
@@ -191,21 +214,23 @@ Create `.claude/workflow/state.json` if it doesn't exist:
 }
 ```
 
-Create the three workflow folders if absent (`mkdir -p`). These are the source of truth for saga's inputs and outputs — every command reads and writes here unless the user passes an explicit path:
+Create the four folders below if absent (`mkdir -p`). These are the source of truth for saga's inputs and outputs — every command reads and writes here unless the user passes an explicit path:
 
 | Folder | Holds | Written by |
 |---|---|---|
 | `.claude/instructions/` | Specs / instructions the user writes for `/design` | The user |
 | `.claude/design-drafts/` | `<slug>-design.md` | `/design` |
 | `.claude/implementation-notes/` | `<slug>-notes.md` | `/implement` |
+| `.claude/code-review/` | `<slug>-review.md` | `/saga:review` (standalone, outside the workflow above) |
 
-Then gitignore all three in the project's root `.gitignore` (create it if absent). Append only the entries not already present — don't reorder or rewrite existing content:
+Then gitignore all four in the project's root `.gitignore` (create it if absent). Append only the entries not already present — don't reorder or rewrite existing content:
 
 ```
 # saga workflow inputs/outputs
 .claude/instructions/
 .claude/design-drafts/
 .claude/implementation-notes/
+.claude/code-review/
 ```
 
 On `--refresh`, re-run this step as-is: it's idempotent, and it backfills any folder or ignore entry that's missing.
@@ -255,6 +280,8 @@ Derive `<source-dir>` from the module/build layout detected in Step 1 (existing 
 
 Skip entirely for new projects — there's no build tool to detect yet.
 
+If step 1 found a dependency vulnerability check, also add its exact command (`Bash(./gradlew dependencyCheckAnalyze)` or `Bash(./mvnw dependency-check:check)`), since `/saga:review` runs it.
+
 ### Hard rules
 
 1. **Never allowlist arbitrary code execution.** No `Bash(python3:*)`, `Bash(node:*)`, `Bash(bash:*)`, `Bash(npx:*)`, `Bash(sudo:*)`. No task-runner wildcards — `Bash(npm run *)`, `Bash(make *)`, `Bash(./gradlew *)` all let a script or build file run anything, so they're equivalent to a shell. Exact task names only, as in the table above.
@@ -293,7 +320,8 @@ The build-command table covers the predictable, high-frequency cases; it deliber
 
 Report a short summary of:
 - Whether this was treated as a new or existing project
-- What was written (context docs, skill updates), and on `--refresh`, anything step 3b stripped out of pre-existing content
+- What was written (context docs, skill updates, `REVIEW.md`), and on `--refresh`, anything step 3b stripped out of pre-existing content
+- What `REVIEW.md` recorded for the dependency check and guardrails, and that reviewers without access to `.claude/context/` (it's uncommitted unless the team chooses otherwise) won't see `REVIEW.md` or the conventions
 - The workflow folders from step 5, which entries were added to `.gitignore`, and that specs go in `.claude/instructions/` for `/design` to pick up, starting from `${CLAUDE_PLUGIN_ROOT}/templates/spec.template.md`
 - What was decided for permission friction (step 6): the scope chosen, exactly what was added to `.claude/settings.json`, what was deliberately skipped and why (e.g. "skipped `./gradlew *` — arbitrary execution"; "skipped `cat`/`git status` — already auto-allowed"), and a plain note that scoped Edit/Write means those calls stop being individually confirmed
 - Whether a `## Common commands` section was added to `CLAUDE.md`, and what it lists

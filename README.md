@@ -49,6 +49,11 @@ answer under `## Persistence stack` in `.claude/context/PATTERNS.md`, and writes
 only the matching conventions override. The code-executor reads that heading to
 decide which of the two skills to load, so don't leave it blank.
 
+Each skill ends with a `## Review checklist`: the violations a reviewer should
+flag, each with a default severity (High / Medium / Low). Items marked
+`[guardrail]` could be enforced by a test (ArchUnit or a linter) instead of a
+reviewer.
+
 ## Platform baseline
 
 **Java 25 and Spring Boot 4.x, unconditionally** — Framework 7, Spring Security
@@ -95,7 +100,7 @@ forced into it by cloning the main project repo.
 ## Usage
 
 ```
-/init-context                      # once per project: generates .claude/context/*, CLAUDE.md, workflow state + gitignored .claude/{instructions,design-drafts,implementation-notes}/, offers a scoped Read/Edit/Write + build-command allowlist
+/init-context                      # once per project: generates .claude/context/* (including REVIEW.md), CLAUDE.md, workflow state + gitignored .claude/{instructions,design-drafts,implementation-notes,code-review}/, offers a scoped Read/Edit/Write + build-command allowlist
 /design PROJ-123                   # phase 1: reads .claude/instructions/PROJ-123.md (or pass any path; no arg picks from the folder), asks first if the spec has no test scenarios, produces .claude/design-drafts/proj-123-design.md (flow diagram, critical changes + blast radius, Given-When-Then test plan, recommended model/split), stops for review
 # ... you read the design doc — no enforced gate, but read it before continuing ...
 /implement                         # phase 2: confirms the recommended model (if not sonnet) and asks test scope (none/unit/unit+integration — not asked when the design is test-only), then implements only the spec's scope, writes .claude/implementation-notes/proj-123-notes.md (TL;DR + details)
@@ -135,6 +140,44 @@ It writes official, human-maintained documentation to `docs/about-this-service/`
 — distinct from the AI-generated drafts under `.claude/design-drafts/` and
 `.claude/implementation-notes/`. Re-run with `--refresh` after significant
 feature changes.
+
+### Code review
+
+Reviews are standalone too. They're meant for someone other than the author:
+another developer, Claude, or an AI review tool. They never touch
+`state.json` or the `/mark-reviewed` gate.
+
+```
+/saga:review                       # current branch vs the default branch, plus uncommitted changes
+/saga:review 123 --req docs/prd.md # a PR, checked against a given spec, PRD or high-level design (path or URL)
+```
+
+`/saga:review` writes `.claude/code-review/<slug>-review.md` (gitignored). The
+report covers:
+
+- the verdict and a mental model of the change, with a diagram only if the flow changed
+- the impact and blast radius
+- findings by severity, grouped as correctness and functionality, scalability, and code quality
+- guardrail candidates (rules worth enforcing as ArchUnit tests)
+- proposed rule and convention changes
+
+All of it is driven by `.claude/context/REVIEW.md`, which `/init-context`
+writes. It maps changed paths to the conventions files, whose `## Review
+checklist` sections hold the rules. It also sets the severities, the
+cross-cutting checks (concurrency, idempotency, deploy and rollback), where
+requirements come from (`--req`, then the PR description, then `docs/`, then
+the saga spec), the dependency check to run if one is configured, and the
+report format.
+
+Other reviewers use the same file:
+
+- Claude Code's built-in `/code-review` applies it through the `## Code review`
+  pointer in `CLAUDE.md`, with its own output format: a findings list, each one
+  prefixed with its severity.
+- A person, or a tool like CodeRabbit, can read it directly.
+
+`.claude/context/` is uncommitted by default, so reviewers without that folder
+won't see `REVIEW.md` or the conventions files unless the team commits them.
 
 ## Workflow
 
@@ -237,7 +280,10 @@ Claude to read `.claude/context/conventions/<skill-name>.md` *inside the
 project* and treat it as authoritative over everything above it.
 `/init-context` step 3 generates those files from what it found in your
 codebase; go back and correct them by hand where it guessed wrong. That's the
-customization surface — not the plugin's own files.
+customization surface — not the plugin's own files. Each conventions file
+ends with its own `## Review checklist`: the skill's items, adjusted where the
+project's conventions differ, plus project-specific ones. Edit those to change
+what reviews flag and at what severity.
 
 If a project's real convention actively contradicts a skill baseline (say,
 `open-in-view` is on and can't be turned off yet), write that in the

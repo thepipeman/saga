@@ -89,6 +89,20 @@ Two Boot 4 specifics worth knowing:
 
 Spring Framework 7 standardizes on JSpecify. Mark packages `@NullMarked` in `package-info.java` so unannotated types are non-null by default, and annotate only the genuinely nullable ones with `org.jspecify.annotations.@Nullable`. Do not use `org.springframework.lang.@Nullable` or `@NonNullApi` — deprecated in Framework 7.
 
+## Review checklist
+
+Violations to flag when reviewing a change, with their default severity — **High** (fix before merge), **Medium** (fix in this change or accept with a reason), **Low** (optional). `[guardrail]` marks a rule a test (ArchUnit or a linter) could enforce instead of a reviewer. The section in parentheses has the detail.
+
+- **High** — `open-in-view` not explicitly `false`, or `ddl-auto` anything other than `validate`. (Non-negotiables 1–2)
+- **High** — An external call or message publish inside a transaction. (Non-negotiables 6)
+- **Medium** — An entity returned from a controller or passed across the service boundary. `[guardrail]` (Non-negotiables 3)
+- **Medium** — A `@ManyToOne` / `@OneToOne` without `fetch = LAZY`. `[guardrail]` (Non-negotiables 4)
+- **Medium** — An unbounded read (`findAll()` with no `Pageable` or `Limit`) on a table that grows. (Non-negotiables 7)
+- **Medium** — A new read path that loads associations with an N+1, or with pagination over a collection fetch. (`references/performance.md`)
+- **Medium** — Business rules, orchestration, or external calls in a repository. `[guardrail]` (Non-negotiables 8)
+- **Medium** — `@Data` on an entity, or a record used as an entity. `[guardrail]` (`references/entities.md`)
+- **Low** — `JpaRepository` where a narrower interface fits. (Repository shape)
+
 ---
 
 ## Codebase conventions

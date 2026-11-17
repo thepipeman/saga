@@ -22,15 +22,16 @@ Sequences deserve specific attention: if an entity uses `GenerationType.SEQUENCE
 - Any new query pattern introduced by a change must have its indexing needs called out explicitly — don't discover them later via a slow-query alert.
 - Prefer `CREATE INDEX CONCURRENTLY` for indexes on tables that see live traffic, to avoid locking writes.
 
-## Review checklist for any migration
+## Review checklist
 
-- [ ] New file — not an edit to an existing shipped migration
-- [ ] Backward-compatible with the currently-deployed app version
-- [ ] Indexes added for any new query pattern
-- [ ] Destructive changes are a separate, later migration from the additive change that precedes them
-- [ ] Non-nullable columns ship as nullable/defaulted first
-- [ ] Entity mapping (or jOOQ codegen) updated in the same change, and `ddl-auto` is still `validate`
-- [ ] Sequence `INCREMENT BY` matches the entity's `allocationSize`, if applicable
+Violations to flag when reviewing a change, with their default severity — **High** (fix before merge), **Medium** (fix in this change or accept with a reason), **Low** (optional). The section in parentheses has the detail.
+
+- **High** — An edit to a migration that has already shipped. (Migration rules)
+- **High** — A change that isn't backward-compatible with the deployed app version, or a destructive change in the same migration as the additive one before it. (Migration rules)
+- **High** — A non-nullable column added without a nullable or defaulted first step. (Migration rules)
+- **High** — A sequence `INCREMENT BY` that doesn't match the entity's `allocationSize`. (The migration is the source of truth)
+- **Medium** — Entity mapping (or jOOQ codegen) not updated in the same change, or `ddl-auto` not `validate`. (The migration is the source of truth)
+- **Medium** — A new query pattern with no supporting index, or a `CREATE INDEX` without `CONCURRENTLY` on a table with live traffic. (Indexing)
 
 ---
 

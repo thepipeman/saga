@@ -293,6 +293,25 @@ log.warn("{}: refund of {} exceeds the settled amount of payment {}; check for a
 
 For persistence, use the rule matching this project's stack — `spring-data-jpa.mdc` or `jooq-conventions.mdc`.
 
+## Review checklist
+
+Violations to flag when reviewing a change, with their default severity — **High** (fix before merge), **Medium** (fix in this change or accept with a reason), **Low** (optional). `[guardrail]` marks a rule a test (ArchUnit or a linter) could enforce instead of a reviewer. The section in parentheses has the detail.
+
+- **High** — A transaction spans an external call (HTTP, KMS, messaging). (Transactions)
+- **High** — Secrets, credentials, full PII, or financial data in a log line, response, token claim, or table; a bearer-style value stored unhashed. (Security, Logging)
+- **High** — Authorization decided from a caller-supplied value. (Security)
+- **High** — A raw persistence exception, constraint name, or downstream status/body/URL reaches the response or the logs. (Error handling)
+- **Medium** — `@Transactional` on a class, or a multi-write flow with more than one transaction boundary. `[guardrail]` for the class-level case. (Transactions)
+- **Medium** — An entity or generated database record crosses controller ↔ service or service ↔ service; a controller calls a repository. `[guardrail]` (Layering and packaging)
+- **Medium** — A service reads request-scoped context, calls `Instant.now()` instead of an injected `Clock`, or constructs its own `ObjectMapper`; field injection. `[guardrail]` (Layering and packaging)
+- **Medium** — An outbound client without explicit timeouts, with retries on, with a URL containing ids, or built on `RestTemplate`; a 2xx with an unusable body treated as an empty result. `[guardrail]` for `RestTemplate`. (REST clients)
+- **Medium** — A request body without `@Valid`; required configuration with a default value. (Validation)
+- **Medium** — A new exception subclass instead of an error code, or catch-and-translate in a controller or service. `[guardrail]` (Error handling)
+- **Medium** — A breaking change to a versioned API without a new version, or a hand-rolled `/v1/` prefix. (API versioning)
+- **Medium** — Boot 3.x-era APIs or pre-21 idioms in new code. `[guardrail]` for the removed APIs. (Version baseline)
+- **Low** — General code rules: naming, method size, argument wrapping, member order, unnamed compound conditions, an interface with one implementation, a hand-written mapper. (General code rules, Layering and packaging, Records and mapping)
+- **Low** — Javadoc that restates the signature or refers to history or process artifacts. (Javadoc and code comments)
+
 ---
 
 ## Codebase conventions
