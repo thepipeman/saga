@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test scenarios. `/design` asks before designing when a spec has no scenarios,
   offering to stop or have scenarios recommended.
 - Implementation notes template: a short TL;DR followed by technical details.
+- `/saga:review`: a standalone review for anyone other than the author, with a
+  verdict, findings by severity, and suggested guardrails and rule changes.
+- `REVIEW.md` at the project root and a severity-rated review checklist in each
+  skill, so teammates, `/code-review`, and AI review tools apply the same rules.
 
 ### Changed
 
