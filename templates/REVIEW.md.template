@@ -27,7 +27,7 @@ The verdict follows from the findings:
 
 ## Context
 
-<!-- Links to whichever context docs exist: .claude/context/ARCHITECTURE.md, PATTERNS.md, DOMAIN.md, TESTING.md. One line each on what a reviewer uses it for (e.g. DOMAIN.md: business rules to check correctness against). These files may be local to the author; a reviewer without them relies on the conventions files and the requirement sources. -->
+<!-- Links to whichever context docs exist: .claude/context/ARCHITECTURE.md, PATTERNS.md, DOMAIN.md, TESTING.md. One line each on what a reviewer uses it for (e.g. DOMAIN.md: business rules to check correctness against). -->
 
 ## Convention map
 

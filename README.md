@@ -176,8 +176,8 @@ Other reviewers use the same file:
   prefixed with its severity.
 - A person, or a tool like CodeRabbit, can read it directly.
 
-`.claude/context/` is uncommitted by default, so reviewers without that folder
-won't see `REVIEW.md` or the conventions files unless the team commits them.
+`.claude/context/` is committed, so every reviewer can reach `REVIEW.md`, the
+context docs, and the conventions files.
 
 ## Workflow
 
