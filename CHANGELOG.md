@@ -5,18 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0-BETA2] - 2026-11-17
 
 ### Added
 
 - saga artifacts follow shared plain-English writing rules adapted from
   ASD-STE100, so design docs, notes, reviews, and changelog entries read the
   same way every run.
-
-## [1.0.0-BETA2] - 2026-11-17
-
-### Added
-
 - Spec template with a high-level design reference, a scope, and Given-When-Then
   test scenarios. `/design` asks before designing when a spec has no scenarios,
   offering to stop or have scenarios recommended.
