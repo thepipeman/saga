@@ -29,6 +29,7 @@ doc path if one was recorded in `state.json`.
    - Mention an edge case only if the reader needs it, in a few words.
    - Keep it short. A bullet that runs past two lines is a sign it's
      describing implementation, not value.
+   - Write it by `${CLAUDE_PLUGIN_ROOT}/templates/writing-rules.md`.
 4. Return only the drafted subheading + bullet, plus a one-line note of
    anything in the diff that diverged from the design doc's stated intent, if
    applicable. Do not write to any file yourself — the orchestrator shows

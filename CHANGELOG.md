@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- saga artifacts follow shared plain-English writing rules adapted from
+  ASD-STE100, so design docs, notes, reviews, and changelog entries read the
+  same way every run.
 - Spec template with a high-level design reference, a scope, and Given-When-Then
   test scenarios. `/design` asks before designing when a spec has no scenarios,
   offering to stop or have scenarios recommended.

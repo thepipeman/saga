@@ -18,7 +18,7 @@ Show the drafted entry it returns to the user and ask two things before touching
 
 ## 2. Commit
 
-Stage the changes and commit with a message referencing the spec/ticket (`state.json`'s `spec_ref`). Do not force-push or amend history.
+Stage the changes and commit with a message referencing the spec/ticket (`state.json`'s `spec_ref`). Write the message body, and any PR body in step 3, by `${CLAUDE_PLUGIN_ROOT}/templates/writing-rules.md`. Do not force-push or amend history.
 
 ## 3. Push / PR
 

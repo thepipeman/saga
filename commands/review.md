@@ -61,7 +61,7 @@ Run `mkdir -p .claude/code-review`. Write `.claude/code-review/<slug>-review.md`
 
 If a report for this slug already exists, overwrite it. It describes the change as it stands now, not a history of reviews.
 
-Write for a reader who hasn't seen the diff: plain, short sentences, findings only, no praise, and no retelling of the diff.
+Write for a reader who hasn't seen the diff: findings only, no praise, and no retelling of the diff. Write the prose by `${CLAUDE_PLUGIN_ROOT}/templates/writing-rules.md`.
 
 ## Step 6 — Report back
 

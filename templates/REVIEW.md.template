@@ -10,7 +10,9 @@
 - Each conventions file ends with a `## Review checklist`. A violation of an item there is a finding, not a nit. Report it at the item's severity, unless you give a one-line reason for raising or lowering it.
 - Also apply the **Cross-cutting checks** below. They cover what no conventions file does.
 - Focus on functionality, correctness, scalability, and code quality. Report findings only: no praise, and no restating the diff.
-- Write plain, short sentences that someone can follow on a first read.
+- Write one finding per bullet. Keep each sentence to 25 words or fewer, with one idea.
+- Use active voice that names the actor, for example "the service retries the call".
+- Keep the hedges. "May fail" stays "may fail".
 
 ## Severity
 
