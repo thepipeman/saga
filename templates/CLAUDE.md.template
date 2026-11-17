@@ -14,7 +14,7 @@ into every session regardless of whether the task needs them.
 ## Code review
 
 When reviewing code in this project, with `/code-review`, `/saga:review`, or
-any ad hoc review, apply `.claude/context/REVIEW.md`. It maps changed paths to
+any ad hoc review, apply `REVIEW.md` at the project root. It maps changed paths to
 the conventions files to check against. Treat a violation of a `## Review
 checklist` item in those files as a finding, not a nit. Start each finding with
 its severity: `[High]`, `[Medium]`, or `[Low]`. When the target is a PR, check

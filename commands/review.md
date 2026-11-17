@@ -23,7 +23,7 @@ Get the default branch from `git symbolic-ref refs/remotes/origin/HEAD`, falling
 
 ## Step 2 — Load the rules
 
-Read `.claude/context/REVIEW.md`. It's the rulebook: severities, the convention map, cross-cutting checks, the dependency check, guardrails, and the report format.
+Read `REVIEW.md` at the project root. It's the rulebook: severities, the convention map, cross-cutting checks, the dependency check, guardrails, and the report format.
 
 Then read only the conventions files that its **Convention map** links to paths in the diff, and only the context docs you need. That usually means `DOMAIN.md` for business rules and `ARCHITECTURE.md` for blast radius. Don't read the rest. Every file loaded costs tokens on every review.
 

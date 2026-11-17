@@ -100,7 +100,7 @@ forced into it by cloning the main project repo.
 ## Usage
 
 ```
-/init-context                      # once per project: generates .claude/context/* (including REVIEW.md), CLAUDE.md, workflow state + gitignored .claude/{instructions,design-drafts,implementation-notes,code-review}/, offers a scoped Read/Edit/Write + build-command allowlist
+/init-context                      # once per project: generates .claude/context/*, REVIEW.md, CLAUDE.md, workflow state + gitignored .claude/{instructions,design-drafts,implementation-notes,code-review}/, offers a scoped Read/Edit/Write + build-command allowlist
 /design PROJ-123                   # phase 1: reads .claude/instructions/PROJ-123.md (or pass any path; no arg picks from the folder), asks first if the spec has no test scenarios, produces .claude/design-drafts/proj-123-design.md (flow diagram, critical changes + blast radius, Given-When-Then test plan, recommended model/split), stops for review
 # ... you read the design doc — no enforced gate, but read it before continuing ...
 /implement                         # phase 2: confirms the recommended model (if not sonnet) and asks test scope (none/unit/unit+integration — not asked when the design is test-only), then implements only the spec's scope, writes .claude/implementation-notes/proj-123-notes.md (TL;DR + details)
@@ -161,8 +161,8 @@ report covers:
 - guardrail candidates (rules worth enforcing as ArchUnit tests)
 - proposed rule and convention changes
 
-All of it is driven by `.claude/context/REVIEW.md`, which `/init-context`
-writes. It maps changed paths to the conventions files, whose `## Review
+All of it is driven by `REVIEW.md` at the project root, next to `CLAUDE.md`,
+which `/init-context` writes. It maps changed paths to the conventions files, whose `## Review
 checklist` sections hold the rules. It also sets the severities, the
 cross-cutting checks (concurrency, idempotency, deploy and rollback), where
 requirements come from (`--req`, then the PR description, then `docs/`, then
@@ -176,8 +176,9 @@ Other reviewers use the same file:
   prefixed with its severity.
 - A person, or a tool like CodeRabbit, can read it directly.
 
-`.claude/context/` is committed, so every reviewer can reach `REVIEW.md`, the
-context docs, and the conventions files.
+`REVIEW.md` sits at the root because it's the entry point for any reviewer;
+the conventions files and context docs it links to stay in `.claude/context/`,
+which is committed, so every reviewer can reach them.
 
 ## Workflow
 
